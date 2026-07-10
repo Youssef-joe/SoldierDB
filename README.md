@@ -1,4 +1,4 @@
-# YouseDB
+# YousDB
 
 A small Go workspace for building a database from scratch while following
 [Build Your Own Database From Scratch in Go](https://build-your-own.org/database/).
