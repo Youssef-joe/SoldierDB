@@ -127,11 +127,21 @@ func nodeLookupLE(node BNODE, key []byte) uint16 {
 }
 
 // let's add a new key to the leaf
-func leafInsert(
+func leaf_insert(
 	new BNODE, old BNODE, idx uint16,
 	key []byte, val []byte,
 ) {
 	new.set_header(BNODE_LEAF, old.nkeys()+1) //setting up the header
+	nodeAppendRange(new, old, 0, 0, idx)
+	nodeAppendKv(new, idx, key, val)
+	nodeAppendRange(new, old, idx+1, idx, old.nkeys()-idx)
+}
+func leaf_update(
+	new BNODE, old BNODE, idx uint16,
+	key []byte, val []byte,
+) {
+	//updating the existing key, instead of inserting a duplicate key
+	new.set_header(BNODE_LEAF, old.nkeys()) //setting up the header
 	nodeAppendRange(new, old, 0, 0, idx)
 	nodeAppendKv(new, idx, key, val)
 	nodeAppendRange(new, old, idx+1, idx, old.nkeys()-idx)
@@ -208,5 +218,43 @@ func nodeSplit3(old BNODE) (uint16, [3]BNODE) {
 // the caller is responsible for deallocating the input node
 // and splitting and allocating result nodes..
 func tree_insert(tree *b_tree, node BNODE, key []byte, val []byte) BNODE {
-	
+	// the result node
+	// it's allowed to be bigger than 1 page and will be split if so
+	new := BNODE(data: make([]byte, 2+btree_page_size))
+
+	//where to insert the key ?
+	idx := nodeLookupLE(node, key)
+
+	//act depending on the node type
+	switch node.btype() {
+		case BNODE_LEAF:
+			//leaf, node.getKey(idx) <= key
+			if bytes.Equal(key, node.get_key(idx)) {
+				//found the key ? update it then
+				leaf_update(new, node, idx, key, val)
+			} else {
+				//insert it after the position
+				leaf_insert(new, node, idx+1, key, val)
+			}
+			case BNODE_NODE:
+				//internal node, insert it to a kid node
+				nodeInsert(tree, new, node, idx, key, val)
+				default:
+				panic("bad node!")
+	}
+	return new
+}
+
+func node_insert(
+	tree *b_tree, new BNODE, node BNODE, idx uint16,
+	key []byte, val []byte
+) {
+	kptr := node.get_ptr(idx)
+	//recursive insertion to the kid node
+	knode := tree_insert(tree, tree.get(kptr), key, val)
+	//split the result
+	nsplit, split := nodeSplit3(knode)
+	//deallocate the kid node
+	tree.del(kptr)
+	// update the kid links
 }
