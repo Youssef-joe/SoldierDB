@@ -59,7 +59,7 @@ func (node BNODE) nkeys() uint16 {
 func (node BNODE) set_header(btype uint16, nkeys uint16) {
 	binary.LittleEndian.PutUint16(node[0:2], btype)
 	binary.LittleEndian.PutUint16(node[0:2], btype)
-	
+
 }
 
 //child pointers
@@ -71,7 +71,7 @@ func (node BNODE) get_ptr(idx uint16) uint64 {
 func (node BNODE) set_ptr(idx uint16, val uint64)
 
 
-//offset list 
+//offset list
 func offset_pos(node BNODE, idx uint16) uint16 {
 	assert(1 <= idx && idx <= node.nkeys())
 	return HEADER + 8*node.nkeys() + 2*(idx-1)
@@ -111,6 +111,12 @@ func nodeLookupLE(node BNODE, key []byte) uint16 {
 	found := uint16(0)
 	// the first key is a copy from the parent node,
 	// thus it is always less than or equal to the key
+
+	// look here; it won't work if the key is out of range
+	// here's an edge case if there is none
+	// and this is fixed by inserting an empty key into the tree
+	// which is the lowest possible key by sort order, so that nodeLookupLE will always find a posittion
+	// so this trick is called a "Sentinel Value"
 	for i := uint16(1); i < nkeys; i++ {
 		cmp := bytes.Compare(node.get_key(i), key)
 		if cmp <= 0 {
@@ -119,7 +125,7 @@ func nodeLookupLE(node BNODE, key []byte) uint16 {
 		if cmp >= 0 {
 			break
 		}
-	
+
 	}
 		return found
 		//the function is called nodeLookupLE cuz it uses the LESS-Than-Or-Equal operator
@@ -180,8 +186,8 @@ func nodeReplaceKidN (
 	nodeAppendRange(new, old, 0, 0, idx)
 	for i, node := range kids {
 		nodeAppendKv(new, idx+uint16(i), tree.new(node), node.get_key(0), nil)
-		//                position       pointer        key              val 
-		// tree.new callback is used to allocate the child nodes  
+		//                position       pointer        key              val
+		// tree.new callback is used to allocate the child nodes
 	}
 	nodeAppendRange(new, old, idx+inc, idx+1, old.nkeys()-(idx+1))
 }
@@ -208,7 +214,7 @@ func nodeSplit3(old BNODE) (uint16, [3]BNODE) {
 	middle := BNODE(make([]byte, btree_page_size))
 	nodeSplit2(left_left, middle, left)
 	assert(left_left.nbytes() <= btree_page_size)
-	
+
 	return 3, [3]BNODE{left_left, middle, right} // 3 nodeSplit3
 	// the returned nodes are allocated from memory; they are just temporary data until nodeReplaceKidN actually allocate them
 }
@@ -257,4 +263,159 @@ func node_insert(
 	//deallocate the kid node
 	tree.del(kptr)
 	// update the kid links
+}
+
+
+// let's start in deletion and Testing
+
+// insert a new key or update an existing key
+func (tree *BTree) insert(key []byte, val []byte)
+
+// delete a key and returns wether the key was there
+func (tree *BTree) delete(key []byte) bool
+
+// now there is some extra work in maintaining the root node for tree insertion
+// 1st --> creating a root node if the tree is empty
+// 2nd --> adding a new root if the root node is split
+func (tree *BTree) insert(key []byte, val []byte) {
+	if tree.root == 0 {
+		//create the first node
+		root := BNode(make([]byte, BTREE_PAGE_SIZE))
+		root.setHeader(BNODE_LEAF, 2)
+		// a dumy key, this makes the tree cover the whole key space.
+		// thus a lookup can always find a containing node
+		nodeAppendKv(root, 0, 0, nil, nil)
+		nodeAppendKv(root, 1, 0, key, val)
+		tree.root = tree.new(root)
+		return
+	}
+	node := treeInsert(tree, tree.get(tree.root), key, val)
+	nsplit, split := nodeSplit3(node)
+	tree.del(tree.root)
+
+	if nsplit > 1 {
+		// the root was split, add new level
+		root := BNode(make([]byte, BTREE_PAGE_SIZE))
+		root.setHeader(BNODE_NODE, nsplit)
+		for i, knode := range split[:nsplit] {
+			ptr, key := tree.new(knode), knode.getKey(0)
+			nodeAppendKv(root, uint16(i), ptr, key, nil)
+		}
+		tree.root = tree.new(root)
+	} else {
+		tree.root = tree.new(split[0])
+	}
+}
+
+
+// here's the part for merging nodes
+// we'll need some new functions for tree deletion
+
+// remove a key from a leaf node
+func leaf_delete(new BNode, old BNode, idx uint16)
+
+// merge 2 nodes into 1
+func node_merge(new BNode, left BNode, right BNode)
+
+// replace 2 adjacent links with 1
+func node_replace2kid(
+	new BNode, old BNode, idx uint16, ptr uint64, key []byte,
+)
+
+func should_merge(
+	tree *BTree, node BNode,
+	idx uint16, updated BNode,
+) (int, BNode) {
+	if updated.nbytes() > BTREE_PAGE_SIZE/4 {
+		return 0, BNode{}
+	}
+	if idx > 0 {
+		sibling := BNode(tree.get(node.getPtr(idx - 1)))
+		merged := sibling.nbytes() + updated.nbytes() - HEADER
+		if merged <= BTREE_PAGE_SIZE {
+			return -1, sibling //left
+		}
+	}
+	if idx+1 < node.nkeys() {
+		sibling := BNode(tree.get(node.getPtr(idx+1)))
+		merged := sibling.nbytes() + updated.nbytes() - HEADER
+		if merged <= BTREE_PAGE_SIZE {
+			return +1,sibling //right
+		}
+	}
+	return 0, BNode{}
+}
+
+// delete a key from the tree
+func tree_delete(tree *BTree, node BNode, key []byte) BNode
+
+// delete a key from an internal node; part of the treeDelete()
+func node_delete(tree *BTree, node BNode, idx uint16, key []byte) BNode {
+	// recurse into the kid
+	kptr := node.getPtr(idx)
+
+
+updated := tree_delete(tree, tree.get(kptr), key)
+if len(updated) == 0 {
+	return BNode{} // not found
+}
+
+tree.del(kptr)
+
+new := BNode(make([]byte, BTREE_PAGE_SIZE))
+
+// check for merging
+mergeDir, sibling := shouldMerge(tree, node, idx, updated)
+
+switch {
+	case mergeDir < 0: //left
+	merged := BNode(make([]byte, updated))
+	tree.del(node.getPtr(idx-1))
+	node_replace2kid(new, node, idx-1, tree.new(merged), merged.get_key(0))
+	case mergeDir > 0: //right
+	merged := BNode(make([]byte, BTREE_PAGE_SIZE))
+	nodeMerge(merged, updated, sibling)
+	tree.del(node.getPtr(idx + 1))
+	node_replace2kid(new, node, idx, tree.new(merged), merged.getKey(0))
+	case mergedDir == 0 && updated.nkeys() == 0:
+	assert(node.nkeys() == 1 && idx == 0) // 1 empty child but no sibling
+	new.setHeader(BNODE_NODE, 0)          // the parent becomes empty too
+	case mergeDir == 0 && updated.nkeys() > 0:
+	node_replace2kid(tree, new, node, idx, updated)
+	}
+
+	return new;
+}
+
+// let's simulate pages in memory to test B+Tree
+type C struct {
+	tree BTree
+	ref map[string]string // the reference data
+	pages map[uint64]BNode // in-memory pages
+}
+
+func newC() *C {
+	pages := map[uint64]BNode{}
+	return &C{
+		tree: BTree{
+			get: func(ptr uint64) []byte {
+				assert(BNode(node).nbytes() <= BTREE_PAGE_SIZE)
+				ptr := uint64(uintptr(unsafe.Pointer(&node[0])))
+				assert(pages[ptr] == nil)
+				pages[ptr] = node
+				return ptr
+			},
+			del: func(ptr uint64) {
+				assert(pages[ptr] != nil)
+				delete(pages, ptr)
+			},
+		},
+		ref: map[string]string{},
+		pages: pages,
+	}
+}
+
+func(c *C) add(key string, val string) {
+	c.tree.Insert([]byte(key), []byte(val))
+	c.ref[key] = val //reference data
 }
