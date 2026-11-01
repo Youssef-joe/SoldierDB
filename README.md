@@ -59,7 +59,7 @@ make build         # build the SQL CLI
 make shared        # build libyousdb shared library and header
 make rust          # build the Rust client
 make cpp           # build the C++ client
-make check         # fmt check + Go tests + client tests
+make check         # fmt check + Go tests + C, Rust and C++ client tests
 ```
 
 ## Design Notes
