@@ -245,6 +245,23 @@ fn transactions_commit_and_rollback() {
 }
 
 #[test]
+fn vectors_can_be_read_and_ranked() {
+    let tmp = TempDb::new("vectors");
+    let db = Database::open(tmp.path()).expect("open database");
+    db.exec("CREATE TABLE docs (id INTEGER PRIMARY KEY, embedding VECTOR(3) NOT NULL)")
+        .expect("create");
+    db.exec("INSERT INTO docs VALUES (1, VECTOR(1, 0, 0)), (2, VECTOR(0, 1, 0))")
+        .expect("insert");
+
+    let result = db
+        .exec("SELECT id, embedding FROM docs ORDER BY cosine_distance(embedding, VECTOR(1, 0, 0)) LIMIT 1")
+        .expect("search");
+    assert_eq!(result.get(0, 0), Some(&Value::Integer(1)));
+    assert_eq!(result.get(0, 1), Some(&Value::Vector(vec![1.0, 0.0, 0.0])));
+    assert_eq!(result.get(0, 1).unwrap().as_vector(), Some(&[1.0, 0.0, 0.0][..]));
+}
+
+#[test]
 fn multi_statement_exec_returns_last_result() {
     let tmp = TempDb::new("multi");
     let db = Database::open(tmp.path()).expect("open database");

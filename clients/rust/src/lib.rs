@@ -56,6 +56,8 @@ mod ffi {
         pub fn yousdb_value_real(handle: u64, row: c_int, col: c_int) -> c_double;
         pub fn yousdb_value_bool(handle: u64, row: c_int, col: c_int) -> c_int;
         pub fn yousdb_value_text(handle: u64, row: c_int, col: c_int) -> *mut c_char;
+        pub fn yousdb_value_vector_dimension(handle: u64, row: c_int, col: c_int) -> c_int;
+        pub fn yousdb_value_vector_element(handle: u64, row: c_int, col: c_int, index: c_int) -> f32;
 
         pub fn yousdb_free_string(s: *mut c_char);
     }
@@ -99,6 +101,7 @@ pub enum Value {
     Real(f64),
     Text(String),
     Boolean(bool),
+    Vector(Vec<f32>),
 }
 
 impl Value {
@@ -140,6 +143,14 @@ impl Value {
         }
     }
 
+    /// The value as a vector, if it is one.
+    pub fn as_vector(&self) -> Option<&[f32]> {
+        match self {
+            Value::Vector(v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// The name of the value's SQL type.
     pub fn type_name(&self) -> &'static str {
         match self {
@@ -148,6 +159,7 @@ impl Value {
             Value::Real(_) => "REAL",
             Value::Text(_) => "TEXT",
             Value::Boolean(_) => "BOOLEAN",
+            Value::Vector(_) => "VECTOR",
         }
     }
 }
@@ -161,6 +173,16 @@ impl fmt::Display for Value {
             Value::Text(v) => f.write_str(v),
             Value::Boolean(true) => f.write_str("true"),
             Value::Boolean(false) => f.write_str("false"),
+            Value::Vector(v) => {
+                f.write_str("[")?;
+                for (i, component) in v.iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "{component}")?;
+                }
+                f.write_str("]")
+            }
         }
     }
 }
@@ -341,6 +363,14 @@ unsafe fn read_value(handle: u64, row: c_int, col: c_int) -> Value {
             take_string(ffi::yousdb_value_text(handle, row, col)).unwrap_or_default(),
         ),
         4 => Value::Boolean(ffi::yousdb_value_bool(handle, row, col) != 0),
+        5 => {
+            let dimension = ffi::yousdb_value_vector_dimension(handle, row, col).max(0);
+            let mut vector = Vec::with_capacity(dimension as usize);
+            for index in 0..dimension {
+                vector.push(ffi::yousdb_value_vector_element(handle, row, col, index));
+            }
+            Value::Vector(vector)
+        }
         _ => Value::Null,
     }
 }
