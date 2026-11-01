@@ -12,7 +12,7 @@ extern "C" {
 
 namespace yousdb {
 
-enum class ValueType { Null = 0, Integer = 1, Real = 2, Text = 3, Boolean = 4 };
+enum class ValueType { Null = 0, Integer = 1, Real = 2, Text = 3, Boolean = 4, Vector = 5 };
 
 class Error : public std::runtime_error {
 public:
@@ -31,6 +31,7 @@ public:
     explicit Value(double value) : type_(ValueType::Real), real_(value) {}
     explicit Value(std::string value) : type_(ValueType::Text), text_(std::move(value)) {}
     explicit Value(bool value) : type_(ValueType::Boolean), boolean_(value) {}
+    explicit Value(std::vector<float> value) : type_(ValueType::Vector), vector_(std::move(value)) {}
 
     ValueType type() const noexcept { return type_; }
     bool is_null() const noexcept { return type_ == ValueType::Null; }
@@ -38,6 +39,7 @@ public:
     double as_f64() const;
     bool as_bool() const;
     const std::string& as_text() const;
+    const std::vector<float>& as_vector() const;
     std::string to_string() const;
 
 private:
@@ -46,6 +48,7 @@ private:
     double real_ = 0.0;
     bool boolean_ = false;
     std::string text_;
+    std::vector<float> vector_;
 };
 
 class Result {

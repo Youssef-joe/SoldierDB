@@ -41,6 +41,14 @@ Value read_value(std::uint64_t result, int row, int column) {
     case 2: return Value(yousdb_value_real(result, row, column));
     case 3: return Value(take_string(yousdb_value_text(result, row, column)));
     case 4: return Value(yousdb_value_bool(result, row, column) != 0);
+    case 5: {
+        const auto dimension = yousdb_value_vector_dimension(result, row, column);
+        std::vector<float> vector;
+        for (int i = 0; i < dimension; ++i) {
+            vector.push_back(yousdb_value_vector_element(result, row, column, i));
+        }
+        return Value(std::move(vector));
+    }
     default: return Value();
     }
 }
@@ -68,6 +76,11 @@ const std::string& Value::as_text() const {
     return text_;
 }
 
+const std::vector<float>& Value::as_vector() const {
+    if (type_ != ValueType::Vector) throw Error("value is not a VECTOR");
+    return vector_;
+}
+
 std::string Value::to_string() const {
     switch (type_) {
     case ValueType::Null: return "NULL";
@@ -79,6 +92,16 @@ std::string Value::to_string() const {
     }
     case ValueType::Text: return text_;
     case ValueType::Boolean: return boolean_ ? "true" : "false";
+    case ValueType::Vector: {
+        std::ostringstream out;
+        out << "[";
+        for (std::size_t i = 0; i < vector_.size(); ++i) {
+            if (i) out << ", ";
+            out << vector_[i];
+        }
+        out << "]";
+        return out.str();
+    }
     }
     return {};
 }

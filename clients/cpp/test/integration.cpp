@@ -29,5 +29,12 @@ int main(int argc, char** argv) {
     auto reopened = yousdb::Database::open(path);
     auto durable = reopened.exec("SELECT COUNT(*) FROM users");
     assert(durable.get(0, 0)->as_i64() == 2);
+
+    reopened.exec("CREATE TABLE docs (id INTEGER PRIMARY KEY, embedding VECTOR(3) NOT NULL)");
+    reopened.exec("INSERT INTO docs VALUES (1, VECTOR(1, 0, 0)), (2, VECTOR(0, 1, 0))");
+    auto nearest = reopened.exec("SELECT id, embedding FROM docs ORDER BY cosine_distance(embedding, VECTOR(1, 0, 0)) LIMIT 1");
+    assert(nearest.get(0, 0)->as_i64() == 1);
+    assert(nearest.get(0, 1)->as_vector().size() == 3);
+    assert(nearest.get(0, 1)->as_vector()[0] == 1.0F);
     std::remove(path.c_str());
 }
