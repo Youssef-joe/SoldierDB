@@ -29,6 +29,7 @@ type Tx struct {
 	writable bool
 	writes   map[string]write
 	done     bool
+	unlock   func()
 }
 
 // Writable reports whether the transaction accepts writes.
@@ -171,22 +172,76 @@ func inRange(key, start, end []byte) bool {
 	return true
 }
 
-// View runs fn in a read-only transaction. The database is read-locked for the
-// duration of fn.
-func (db *DB) View(fn func(tx *Tx) error) error {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
+// Begin starts an explicit transaction. Writable transactions take the write
+// lock; read-only transactions take the read lock. Call Commit or Rollback to
+// release the lock.
+func (db *DB) Begin(writable bool) (*Tx, error) {
+	if writable {
+		db.mu.Lock()
+	} else {
+		db.mu.RLock()
+	}
 	if db.closed {
-		return ErrClosed
+		if writable {
+			db.mu.Unlock()
+		} else {
+			db.mu.RUnlock()
+		}
+		return nil, ErrClosed
 	}
 	tx := &Tx{
 		db:       db,
 		root:     db.pager.Root(),
-		writable: false,
+		writable: writable,
 		writes:   make(map[string]write),
 	}
-	err := fn(tx)
+	if writable {
+		tx.unlock = db.mu.Unlock
+	} else {
+		tx.unlock = db.mu.RUnlock
+	}
+	return tx, nil
+}
+
+// Commit applies the transaction's writes atomically and releases its lock.
+func (tx *Tx) Commit() error {
+	if tx.done {
+		return ErrTxDone
+	}
 	tx.done = true
+	defer tx.release()
+	if !tx.writable || len(tx.writes) == 0 {
+		return nil
+	}
+	return tx.commit()
+}
+
+// Rollback discards the transaction's writes and releases its lock.
+func (tx *Tx) Rollback() {
+	if tx.done {
+		return
+	}
+	tx.done = true
+	tx.writes = nil
+	tx.release()
+}
+
+func (tx *Tx) release() {
+	if tx.unlock != nil {
+		tx.unlock()
+		tx.unlock = nil
+	}
+}
+
+// View runs fn in a read-only transaction. The database is read-locked for the
+// duration of fn.
+func (db *DB) View(fn func(tx *Tx) error) error {
+	tx, err := db.Begin(false)
+	if err != nil {
+		return err
+	}
+	err = fn(tx)
+	tx.Rollback()
 	return err
 }
 
@@ -194,27 +249,15 @@ func (db *DB) View(fn func(tx *Tx) error) error {
 // writes are committed atomically; otherwise they are discarded. The database
 // is write-locked for the duration of fn.
 func (db *DB) Update(fn func(tx *Tx) error) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if db.closed {
-		return ErrClosed
-	}
-	tx := &Tx{
-		db:       db,
-		root:     db.pager.Root(),
-		writable: true,
-		writes:   make(map[string]write),
-	}
-	if err := fn(tx); err != nil {
-		tx.done = true
+	tx, err := db.Begin(true)
+	if err != nil {
 		return err
 	}
-	if tx.done {
-		return ErrTxDone
+	if err := fn(tx); err != nil {
+		tx.Rollback()
+		return err
 	}
-	err := tx.commit()
-	tx.done = true
-	return err
+	return tx.Commit()
 }
 
 func (tx *Tx) commit() error {
