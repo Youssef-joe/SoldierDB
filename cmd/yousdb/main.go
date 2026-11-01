@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/Youssef-joe/YousDB/engine/sql"
 )
@@ -60,7 +61,7 @@ func repl(engine *sql.Engine) error {
 	}
 
 	if interactive {
-		fmt.Println("YousDB shell. Type \\help for help, \\q to quit.")
+		showBanner()
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -115,6 +116,21 @@ func repl(engine *sql.Engine) error {
 		execute(engine, strings.TrimSpace(buffer.String()))
 	}
 	return nil
+}
+
+func showBanner() {
+	frames := []string{"·", "··", "···"}
+	for _, frame := range frames {
+		fmt.Printf("\r\033[36mStarting YousDB %s\033[0m", frame)
+		time.Sleep(70 * time.Millisecond)
+	}
+	fmt.Print("\r\033[2K")
+	fmt.Println("\033[1;36m __   __                         ____  ____  ")
+	fmt.Println("\033[1;36m \\ \\ / /__  _   _ ___  ___   |  _ \\| __ ) ")
+	fmt.Println("\033[1;36m  \\ V / _ \\| | | / __|/ _ \\  | | | |  _ \\ ")
+	fmt.Println("\033[1;36m   | | (_) | |_| \\__ \\  __/  | |_| | |_) |")
+	fmt.Println("\033[1;36m   |_|\\___/ \\__,_|___/\\___|  |____/|____/ \\033[0m")
+	fmt.Println("YousDB shell · type \\033[33m\\help\\033[0m for shortcuts, \\033[33m\\q\\033[0m to quit.")
 }
 
 func execute(engine *sql.Engine, query string) {

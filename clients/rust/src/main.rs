@@ -92,7 +92,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Options, String> {
 fn repl(db: &Database) -> io::Result<()> {
     let interactive = io::stdin().is_terminal();
     if interactive {
-        println!("YousDB Rust shell. Type \\help for help, \\q to quit.");
+        show_banner();
     }
 
     let stdin = io::stdin();
@@ -144,6 +144,23 @@ fn repl(db: &Database) -> io::Result<()> {
         execute(db, buffer.trim());
     }
     Ok(())
+}
+
+fn show_banner() {
+    for frame in ["·", "··", "···"] {
+        print!("\r\x1b[36mStarting YousDB {frame}\x1b[0m");
+        let _ = io::stdout().flush();
+        std::thread::sleep(std::time::Duration::from_millis(70));
+    }
+    print!("\r\x1b[2K");
+    println!("\x1b[1;36m __   __                         ____  ____  \x1b[0m");
+    println!("\x1b[1;36m \\ \\ / /__  _   _ ___  ___   |  _ \\| __ ) \x1b[0m");
+    println!("\x1b[1;36m  \\ V / _ \\| | | / __|/ _ \\  | | | |  _ \\ \x1b[0m");
+    println!("\x1b[1;36m   | | (_) | |_| \\__ \\  __/  | |_| | |_) |\x1b[0m");
+    println!("\x1b[1;36m   |_|\\___/ \\__,_|___/\\___|  |____/|____/ \x1b[0m");
+    println!(
+        "YousDB Rust shell · type \x1b[33m\\help\x1b[0m for shortcuts, \x1b[33m\\q\x1b[0m to quit."
+    );
 }
 
 fn execute(db: &Database, sql: &str) {

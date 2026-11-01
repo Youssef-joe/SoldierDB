@@ -1,8 +1,10 @@
 #include "yousdb.hpp"
 
 #include <cstdlib>
+#include <chrono>
 #include <iostream>
 #include <sstream>
+#include <thread>
 
 #if defined(_WIN32)
 #include <io.h>
@@ -23,6 +25,20 @@ void print_help() {
               << "  \\vector           show a vector search example\n"
               << "  \\clear, \\cls      clear the terminal\n\n"
               << "SQL statements end with a semicolon.\n";
+}
+
+void show_banner() {
+    for (const char* frame : {"·", "··", "···"}) {
+        std::cout << "\r\033[36mStarting YousDB " << frame << "\033[0m" << std::flush;
+        std::this_thread::sleep_for(std::chrono::milliseconds(70));
+    }
+    std::cout << "\r\033[2K"
+              << "\033[1;36m __   __                         ____  ____  \033[0m\n"
+              << "\033[1;36m \\ \\ / /__  _   _ ___  ___   |  _ \\| __ ) \033[0m\n"
+              << "\033[1;36m  \\ V / _ \\| | | / __|/ _ \\  | | | |  _ \\ \033[0m\n"
+              << "\033[1;36m   | | (_) | |_| \\__ \\  __/  | |_| | |_) |\033[0m\n"
+              << "\033[1;36m   |_|\\___/ \\__,_|___/\\___|  |____/|____/ \033[0m\n"
+              << "YousDB C++ shell · type \033[33m\\help\033[0m for shortcuts, \033[33m\\q\033[0m to quit.\n";
 }
 
 void print_result(const yousdb::Result& result) {
@@ -105,7 +121,7 @@ bool meta_command(yousdb::Database& db, const std::string& input, bool& quit) {
 
 int repl(yousdb::Database& db) {
     const bool interactive = YOUSDB_ISATTY != 0;
-    if (interactive) std::cout << "YousDB C++ shell. Type \\help for help, \\q to quit.\n";
+    if (interactive) show_banner();
     std::string buffer;
     std::string line;
     while (true) {
