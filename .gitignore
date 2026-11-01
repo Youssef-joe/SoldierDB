@@ -1,4 +1,21 @@
 .gocache/
-/myowndb
+/build/
+/yousdb
 *.db
+*.db.tmp.*
 *.log
+
+# Rust
+clients/rust/target/
+**/*.rs.bk
+
+# C/C++
+*.o
+*.a
+*.dylib
+*.so
+clients/cpp/build/
+
+# Editor / OS
+.DS_Store
+*.swp
