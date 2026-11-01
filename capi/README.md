@@ -48,12 +48,14 @@ char *message = yousdb_result_message(res);
 Values are available as formatted strings or typed accessors:
 
 ```c
-yousdb_value_type(res, row, col);   /* 0 NULL, 1 INTEGER, 2 REAL, 3 TEXT, 4 BOOLEAN */
+yousdb_value_type(res, row, col);   /* 0 NULL, 1 INTEGER, 2 REAL, 3 TEXT, 4 BOOLEAN, 5 VECTOR */
 yousdb_value_int(res, row, col);
 yousdb_value_real(res, row, col);
 yousdb_value_text(res, row, col);
 yousdb_value_bool(res, row, col);
 yousdb_value_string(res, row, col);
+yousdb_value_vector_dimension(res, row, col);
+yousdb_value_vector_element(res, row, col, index);
 ```
 
 ## Ownership

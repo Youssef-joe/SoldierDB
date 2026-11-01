@@ -207,6 +207,7 @@ func yousdb_result_message(h C.uint64_t) *C.char {
 }
 
 // yousdb_value_type returns 0 for NULL, 1 INTEGER, 2 REAL, 3 TEXT, 4 BOOLEAN,
+// 5 VECTOR,
 // or -1 for an invalid handle or position.
 //
 //export yousdb_value_type
@@ -227,6 +228,8 @@ func yousdb_value_type(h C.uint64_t, row C.int, col C.int) C.int {
 		return 3
 	case sql.BooleanType:
 		return 4
+	case sql.VectorType:
+		return 5
 	default:
 		return -1
 	}
@@ -289,6 +292,30 @@ func yousdb_value_text(h C.uint64_t, row C.int, col C.int) *C.char {
 		return cString("")
 	}
 	return cString(v.Str)
+}
+
+// yousdb_value_vector_dimension returns the number of components, or -1 for
+// an invalid handle, position, or non-vector value.
+//
+//export yousdb_value_vector_dimension
+func yousdb_value_vector_dimension(h C.uint64_t, row C.int, col C.int) C.int {
+	v, ok := valueAt(h, row, col)
+	if !ok || v.Null || v.Type != sql.VectorType {
+		return -1
+	}
+	return C.int(len(v.Vector))
+}
+
+// yousdb_value_vector_element returns a vector component, or 0 for an invalid
+// handle, position, or component.
+//
+//export yousdb_value_vector_element
+func yousdb_value_vector_element(h C.uint64_t, row C.int, col C.int, index C.int) C.float {
+	v, ok := valueAt(h, row, col)
+	if !ok || v.Null || v.Type != sql.VectorType || index < 0 || int(index) >= len(v.Vector) {
+		return 0
+	}
+	return C.float(v.Vector[index])
 }
 
 // yousdb_free_string releases a string returned by this API.
