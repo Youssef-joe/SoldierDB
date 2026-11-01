@@ -1,17 +1,226 @@
+// Command yousdb is the YousDB SQL shell.
 package main
 
 import (
+	"bufio"
+	"errors"
+	"flag"
 	"fmt"
+	"io"
+	"os"
+	"strings"
+	"text/tabwriter"
 
-	"github.com/Youssef-joe/YousDB/engine/kv"
+	"github.com/Youssef-joe/YousDB/engine/sql"
 )
 
 func main() {
-	store := kv.NewMemoryStore()
-	store.Set("hello", []byte("database"))
-	store.Set("chapter", []byte("kv-store"))
-
-	for _, pair := range store.Scan("", "") {
-		fmt.Printf("%s=%s\n", pair.Key, pair.Value)
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
 	}
+}
+
+func run() error {
+	dbPath := flag.String("db", "yousdb.db", "path to the database file")
+	command := flag.String("c", "", "execute SQL and exit")
+	flag.Parse()
+
+	engine, err := sql.Open(*dbPath)
+	if err != nil {
+		return err
+	}
+	defer engine.Close()
+
+	if *command != "" {
+		res, err := engine.Exec(*command)
+		if err != nil {
+			return err
+		}
+		printResult(res)
+		return nil
+	}
+
+	if args := flag.Args(); len(args) > 0 {
+		res, err := engine.Exec(strings.Join(args, " "))
+		if err != nil {
+			return err
+		}
+		printResult(res)
+		return nil
+	}
+
+	return repl(engine)
+}
+
+func repl(engine *sql.Engine) error {
+	interactive := false
+	if info, err := os.Stdin.Stat(); err == nil {
+		interactive = info.Mode()&os.ModeCharDevice != 0
+	}
+
+	if interactive {
+		fmt.Println("YousDB shell. Type \\help for help, \\q to quit.")
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	var buffer strings.Builder
+
+	for {
+		if interactive {
+			if buffer.Len() == 0 {
+				fmt.Print("yousdb> ")
+			} else {
+				fmt.Print("   ...> ")
+			}
+		}
+
+		line, err := reader.ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return err
+		}
+		if line == "" {
+			break
+		}
+		line = strings.TrimSuffix(line, "\n")
+		line = strings.TrimSuffix(line, "\r")
+
+		trimmed := strings.TrimSpace(line)
+		if buffer.Len() == 0 {
+			switch trimmed {
+			case "":
+				continue
+			case "\\q", "\\quit", "exit", "quit":
+				return nil
+			case "\\help", "help":
+				printHelp()
+				continue
+			}
+		}
+
+		buffer.WriteString(line)
+		buffer.WriteString("\n")
+
+		if !completeStatement(buffer.String()) {
+			if err != nil {
+				break
+			}
+			continue
+		}
+
+		query := strings.TrimSpace(buffer.String())
+		buffer.Reset()
+		execute(engine, query)
+	}
+
+	if strings.TrimSpace(buffer.String()) != "" {
+		execute(engine, strings.TrimSpace(buffer.String()))
+	}
+	return nil
+}
+
+func execute(engine *sql.Engine, query string) {
+	res, err := engine.Exec(query)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return
+	}
+	printResult(res)
+}
+
+func printResult(res *sql.Result) {
+	if len(res.Columns) > 0 {
+		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		fmt.Fprintln(w, strings.Join(res.Columns, "\t"))
+		for _, row := range res.Rows {
+			cells := make([]string, len(row))
+			for i, value := range row {
+				cells[i] = value.String()
+			}
+			fmt.Fprintln(w, strings.Join(cells, "\t"))
+		}
+		if err := w.Flush(); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return
+		}
+		noun := "rows"
+		if len(res.Rows) == 1 {
+			noun = "row"
+		}
+		fmt.Printf("(%d %s)\n", len(res.Rows), noun)
+		return
+	}
+	if res.Message != "" {
+		fmt.Println(res.Message)
+	}
+}
+
+func printHelp() {
+	fmt.Print(`YousDB shell commands:
+  \q, \quit        quit the shell
+  \help            show this help
+
+SQL statements end with a semicolon. Examples:
+  CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, age INTEGER);
+  INSERT INTO users VALUES (1, 'Ada', 36);
+  SELECT name, age FROM users WHERE age > 30 ORDER BY age DESC;
+  BEGIN; ... COMMIT; / ROLLBACK;
+  SHOW TABLES;
+  DESCRIBE users;
+`)
+}
+
+// completeStatement reports whether s contains a semicolon outside of string
+// literals, quoted identifiers and comments.
+func completeStatement(s string) bool {
+	inSingle := false
+	inDouble := false
+	inLineComment := false
+	inBlockComment := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case inLineComment:
+			if c == '\n' {
+				inLineComment = false
+			}
+		case inBlockComment:
+			if c == '*' && i+1 < len(s) && s[i+1] == '/' {
+				inBlockComment = false
+				i++
+			}
+		case inSingle:
+			if c == '\'' {
+				if i+1 < len(s) && s[i+1] == '\'' {
+					i++
+				} else {
+					inSingle = false
+				}
+			}
+		case inDouble:
+			if c == '"' {
+				if i+1 < len(s) && s[i+1] == '"' {
+					i++
+				} else {
+					inDouble = false
+				}
+			}
+		default:
+			switch {
+			case c == '-' && i+1 < len(s) && s[i+1] == '-':
+				inLineComment = true
+				i++
+			case c == '/' && i+1 < len(s) && s[i+1] == '*':
+				inBlockComment = true
+				i++
+			case c == '\'':
+				inSingle = true
+			case c == '"':
+				inDouble = true
+			case c == ';':
+				return true
+			}
+		}
+	}
+	return false
 }

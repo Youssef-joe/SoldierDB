@@ -477,6 +477,7 @@ func (p *Parser) parseSelect() (Statement, error) {
 		return nil, err
 	}
 	stmt := &Select{}
+	var err error
 	if p.isKeyword("DISTINCT") {
 		stmt.Distinct = true
 		if err := p.next(); err != nil {
@@ -522,14 +523,16 @@ func (p *Parser) parseSelect() (Statement, error) {
 		break
 	}
 
-	if err := p.expectKeyword("FROM"); err != nil {
-		return nil, err
+	if p.isKeyword("FROM") {
+		if err := p.next(); err != nil {
+			return nil, err
+		}
+		table, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Table = table
 	}
-	table, err := p.parseName()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Table = table
 
 	if p.isKeyword("WHERE") {
 		if err := p.next(); err != nil {

@@ -102,7 +102,7 @@ Commit: `feat(sql): add lexer, AST and recursive-descent parser`
 - System catalog persisted in the KV store.
 - Typed row encoding (`INTEGER`, `REAL`, `TEXT`, `BOOLEAN`, `NULL`).
 - Executor: filtering, projection, ordering, limits, aggregates, grouping,
-  primary-key constraints, secondary indexes.
+  primary-key and UNIQUE constraints, defaults and auto-rowids.
 - Interactive shell and `-c` one-shot mode.
 
 Commit: `feat(sql): add catalog, executor and interactive shell`
@@ -143,4 +143,5 @@ Commit: `feat(cpp): add C++ client, CMake build and CLI`
 - Multi-process concurrency and network replication.
 - Cost-based query optimization.
 - MVCC; transactions are serialized with a single writer.
+- Secondary indexes and a cost-based planner; queries scan the primary tree.
 - Full SQL standard: joins, subqueries and window functions are future work.
