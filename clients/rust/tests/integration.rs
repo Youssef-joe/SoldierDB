@@ -135,7 +135,10 @@ fn constraints_report_errors() {
             "INSERT INTO u VALUES (2, 'a@example.com', 'Bob')",
             "UNIQUE constraint",
         ),
-        ("INSERT INTO u VALUES (2, 'b@example.com', NULL)", "cannot be NULL"),
+        (
+            "INSERT INTO u VALUES (2, 'b@example.com', NULL)",
+            "cannot be NULL",
+        ),
         ("SELECT nope FROM u", "column not found"),
         ("SELECT * FROM missing", "table not found"),
         ("SELECT 1 / 0", "division by zero"),
@@ -169,14 +172,19 @@ fn update_delete_and_rows_affected() {
         .expect("update");
     assert_eq!(result.rows_affected(), 1);
 
-    let result = db.exec("SELECT age FROM users WHERE id = 1").expect("select");
+    let result = db
+        .exec("SELECT age FROM users WHERE id = 1")
+        .expect("select");
     assert_eq!(result.get(0, 0), Some(&Value::Integer(37)));
 
     let result = db.exec("DELETE FROM users WHERE age > 40").expect("delete");
     assert_eq!(result.rows_affected(), 1);
 
     let result = db.exec("SELECT id FROM users ORDER BY id").expect("select");
-    assert_eq!(result.rows(), &[vec![Value::Integer(1)], vec![Value::Integer(3)]]);
+    assert_eq!(
+        result.rows(),
+        &[vec![Value::Integer(1)], vec![Value::Integer(3)]]
+    );
 }
 
 #[test]
@@ -235,10 +243,14 @@ fn transactions_commit_and_rollback() {
     assert_eq!(result.get(0, 0), Some(&Value::Integer(1)));
 
     db.exec("BEGIN").expect("begin");
-    db.exec("INSERT INTO t VALUES (3, 'three')").expect("insert");
+    db.exec("INSERT INTO t VALUES (3, 'three')")
+        .expect("insert");
     db.exec("COMMIT").expect("commit");
     let result = db.exec("SELECT id FROM t ORDER BY id").expect("select");
-    assert_eq!(result.rows(), &[vec![Value::Integer(1)], vec![Value::Integer(3)]]);
+    assert_eq!(
+        result.rows(),
+        &[vec![Value::Integer(1)], vec![Value::Integer(3)]]
+    );
 
     let err = db.exec("COMMIT").expect_err("commit without begin");
     assert!(err.message().contains("no active transaction"));
@@ -258,7 +270,10 @@ fn vectors_can_be_read_and_ranked() {
         .expect("search");
     assert_eq!(result.get(0, 0), Some(&Value::Integer(1)));
     assert_eq!(result.get(0, 1), Some(&Value::Vector(vec![1.0, 0.0, 0.0])));
-    assert_eq!(result.get(0, 1).unwrap().as_vector(), Some(&[1.0, 0.0, 0.0][..]));
+    assert_eq!(
+        result.get(0, 1).unwrap().as_vector(),
+        Some(&[1.0, 0.0, 0.0][..])
+    );
 }
 
 #[test]
@@ -281,7 +296,8 @@ fn hidden_rowid_and_reopen_persistence() {
     let tmp = TempDb::new("reopen");
     {
         let db = Database::open(tmp.path()).expect("open database");
-        db.exec("CREATE TABLE notes (body TEXT NOT NULL)").expect("create");
+        db.exec("CREATE TABLE notes (body TEXT NOT NULL)")
+            .expect("create");
         db.exec("INSERT INTO notes (body) VALUES ('first'), ('second')")
             .expect("insert");
 

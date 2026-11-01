@@ -57,7 +57,12 @@ mod ffi {
         pub fn yousdb_value_bool(handle: u64, row: c_int, col: c_int) -> c_int;
         pub fn yousdb_value_text(handle: u64, row: c_int, col: c_int) -> *mut c_char;
         pub fn yousdb_value_vector_dimension(handle: u64, row: c_int, col: c_int) -> c_int;
-        pub fn yousdb_value_vector_element(handle: u64, row: c_int, col: c_int, index: c_int) -> f32;
+        pub fn yousdb_value_vector_element(
+            handle: u64,
+            row: c_int,
+            col: c_int,
+            index: c_int,
+        ) -> f32;
 
         pub fn yousdb_free_string(s: *mut c_char);
     }
@@ -295,8 +300,8 @@ impl Database {
             .as_ref()
             .to_str()
             .ok_or_else(|| Error::new("database path is not valid UTF-8"))?;
-        let path = CString::new(path)
-            .map_err(|_| Error::new("database path contains a NUL byte"))?;
+        let path =
+            CString::new(path).map_err(|_| Error::new("database path contains a NUL byte"))?;
 
         let mut err: *mut c_char = ptr::null_mut();
         let handle = unsafe { ffi::yousdb_open(path.as_ptr() as *mut c_char, &mut err) };
@@ -359,9 +364,7 @@ unsafe fn read_value(handle: u64, row: c_int, col: c_int) -> Value {
     match ffi::yousdb_value_type(handle, row, col) {
         1 => Value::Integer(ffi::yousdb_value_int(handle, row, col)),
         2 => Value::Real(ffi::yousdb_value_real(handle, row, col)),
-        3 => Value::Text(
-            take_string(ffi::yousdb_value_text(handle, row, col)).unwrap_or_default(),
-        ),
+        3 => Value::Text(take_string(ffi::yousdb_value_text(handle, row, col)).unwrap_or_default()),
         4 => Value::Boolean(ffi::yousdb_value_bool(handle, row, col) != 0),
         5 => {
             let dimension = ffi::yousdb_value_vector_dimension(handle, row, col).max(0);
@@ -381,9 +384,8 @@ unsafe fn collect_result(handle: u64) -> QueryResult {
 
     let mut columns = Vec::with_capacity(column_count as usize);
     for index in 0..column_count {
-        columns.push(
-            take_string(ffi::yousdb_result_column_name(handle, index)).unwrap_or_default(),
-        );
+        columns
+            .push(take_string(ffi::yousdb_result_column_name(handle, index)).unwrap_or_default());
     }
 
     let mut rows = Vec::with_capacity(row_count as usize);
