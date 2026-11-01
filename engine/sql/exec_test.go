@@ -527,3 +527,29 @@ func TestAutoRowIDAfterFailedInsertInTransaction(t *testing.T) {
 	res = mustExec(t, e, `SELECT COUNT(*) FROM t`)
 	checkRows(t, res, [][]string{{"0"}})
 }
+
+func TestVectorsAndSimilarityFunctions(t *testing.T) {
+	e, _ := openEngine(t)
+	defer e.Close()
+
+	mustExec(t, e, `CREATE TABLE docs (id INTEGER PRIMARY KEY, embedding VECTOR(3) NOT NULL)`)
+	mustExec(t, e, `INSERT INTO docs VALUES
+		(1, VECTOR(1, 0, 0)),
+		(2, VECTOR(0.9, 0.1, 0)),
+		(3, VECTOR(0, 1, 0))`)
+
+	res := mustExec(t, e, `SELECT id, cosine_distance(embedding, VECTOR(1, 0, 0)) AS distance
+		FROM docs ORDER BY distance LIMIT 2`)
+	checkRows(t, res, [][]string{{"1", "0"}, {"2", "0.006116265828075562"}})
+
+	res = mustExec(t, e, `SELECT euclidean_distance(VECTOR(1, 2), VECTOR(4, 6)),
+		inner_product(VECTOR(1, 2), VECTOR(3, 4))`)
+	checkRows(t, res, [][]string{{"5", "11"}})
+
+	res = mustExec(t, e, `DESCRIBE docs`)
+	checkRows(t, res, [][]string{{"id", "INTEGER", "NO", "NULL", "YES"}, {"embedding", "VECTOR(3)", "NO", "NULL", "NO"}})
+
+	if _, err := e.Exec(`INSERT INTO docs VALUES (4, VECTOR(1, 2))`); err == nil {
+		t.Fatal("wrong-dimension vector succeeded")
+	}
+}

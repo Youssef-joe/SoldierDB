@@ -16,6 +16,7 @@ type Expr interface {
 type ColumnDef struct {
 	Name       string
 	Type       DataType
+	VectorDim  int
 	PrimaryKey bool
 	NotNull    bool
 	Unique     bool

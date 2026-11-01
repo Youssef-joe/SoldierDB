@@ -29,6 +29,7 @@ var (
 type Column struct {
 	Name       string
 	Type       DataType
+	VectorDim  int
 	PrimaryKey bool
 	NotNull    bool
 	Unique     bool
@@ -180,6 +181,10 @@ func buildTable(stmt *CreateTable) (*Table, error) {
 			PrimaryKey: def.PrimaryKey,
 			NotNull:    def.NotNull,
 			Unique:     def.Unique,
+			VectorDim:  def.VectorDim,
+		}
+		if col.Type == VectorType && col.VectorDim <= 0 {
+			return nil, fmt.Errorf("sql: VECTOR columns require a positive dimension")
 		}
 		if col.PrimaryKey {
 			col.NotNull = true
@@ -189,7 +194,7 @@ func buildTable(stmt *CreateTable) (*Table, error) {
 			if err != nil {
 				return nil, fmt.Errorf("sql: default for %s: %w", def.Name, err)
 			}
-			value, err = Coerce(value, col.Type)
+			value, err = CoerceColumn(value, col)
 			if err != nil {
 				return nil, fmt.Errorf("sql: default for %s: %w", def.Name, err)
 			}

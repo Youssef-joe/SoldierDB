@@ -62,6 +62,19 @@ make cpp           # build the C++ client
 make check         # fmt check + Go tests + C, Rust and C++ client tests
 ```
 
+## Vector search
+
+YousDB supports fixed-dimension `VECTOR` columns and brute-force similarity
+search. See [`docs/VECTOR.md`](docs/VECTOR.md) for the full syntax. A minimal
+query looks like this:
+
+```sql
+CREATE TABLE docs (id INTEGER PRIMARY KEY, embedding VECTOR(3));
+SELECT id FROM docs
+ORDER BY cosine_distance(embedding, VECTOR(1, 0, 0))
+LIMIT 10;
+```
+
 ## Design Notes
 
 - Pages are 4096 bytes; pages 0 and 1 are alternating checksummed meta pages.

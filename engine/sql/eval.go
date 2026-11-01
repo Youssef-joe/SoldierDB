@@ -321,7 +321,8 @@ func isAggregateName(name string) bool {
 // isScalarName reports whether name is a supported scalar function.
 func isScalarName(name string) bool {
 	switch strings.ToUpper(name) {
-	case "UPPER", "LOWER", "LENGTH", "TRIM", "ABS", "ROUND", "COALESCE", "IFNULL", "NULLIF":
+	case "UPPER", "LOWER", "LENGTH", "TRIM", "ABS", "ROUND", "COALESCE", "IFNULL", "NULLIF",
+		"VECTOR", "COSINE_DISTANCE", "EUCLIDEAN_DISTANCE", "INNER_PRODUCT":
 		return true
 	default:
 		return false
@@ -562,6 +563,61 @@ func evalScalar(call *FuncCall, ctx *evalContext) (Value, error) {
 	}
 
 	switch name {
+	case "VECTOR":
+		if len(args) == 0 {
+			return Value{}, fmt.Errorf("sql: VECTOR expects at least one numeric argument")
+		}
+		vector := make([]float32, len(args))
+		for i, arg := range args {
+			if arg.Null {
+				return NullValue(), nil
+			}
+			if !arg.numeric() {
+				return Value{}, fmt.Errorf("sql: VECTOR components must be numeric")
+			}
+			component := arg.asFloat()
+			if math.IsNaN(component) || math.IsInf(component, 0) {
+				return Value{}, fmt.Errorf("sql: VECTOR components must be finite")
+			}
+			vector[i] = float32(component)
+		}
+		return VectorValue(vector), nil
+
+	case "COSINE_DISTANCE", "EUCLIDEAN_DISTANCE", "INNER_PRODUCT":
+		if len(args) != 2 {
+			return Value{}, fmt.Errorf("sql: %s expects two VECTOR arguments", name)
+		}
+		if args[0].Null || args[1].Null {
+			return NullValue(), nil
+		}
+		if args[0].Type != VectorType || args[1].Type != VectorType {
+			return Value{}, fmt.Errorf("sql: %s requires VECTOR arguments", name)
+		}
+		if len(args[0].Vector) != len(args[1].Vector) {
+			return Value{}, fmt.Errorf("sql: %s requires vectors with the same dimension", name)
+		}
+		var dot, leftNorm, rightNorm, squared float64
+		for i, left := range args[0].Vector {
+			right := args[1].Vector[i]
+			lf, rf := float64(left), float64(right)
+			dot += lf * rf
+			leftNorm += lf * lf
+			rightNorm += rf * rf
+			delta := lf - rf
+			squared += delta * delta
+		}
+		switch name {
+		case "INNER_PRODUCT":
+			return RealValue(dot), nil
+		case "EUCLIDEAN_DISTANCE":
+			return RealValue(math.Sqrt(squared)), nil
+		default:
+			if leftNorm == 0 || rightNorm == 0 {
+				return Value{}, fmt.Errorf("sql: COSINE_DISTANCE is undefined for a zero vector")
+			}
+			return RealValue(1 - dot/(math.Sqrt(leftNorm)*math.Sqrt(rightNorm))), nil
+		}
+
 	case "UPPER", "LOWER":
 		if len(args) != 1 {
 			return Value{}, fmt.Errorf("sql: %s expects one argument", name)

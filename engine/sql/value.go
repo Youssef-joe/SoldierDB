@@ -19,6 +19,8 @@ const (
 	TextType
 	// BooleanType is true or false.
 	BooleanType
+	// VectorType is a fixed-dimension vector of float32 values.
+	VectorType
 )
 
 func (t DataType) String() string {
@@ -31,6 +33,8 @@ func (t DataType) String() string {
 		return "TEXT"
 	case BooleanType:
 		return "BOOLEAN"
+	case VectorType:
+		return "VECTOR"
 	default:
 		return "UNKNOWN"
 	}
@@ -47,6 +51,8 @@ func ParseDataType(name string) (DataType, bool) {
 		return TextType, true
 	case "BOOL", "BOOLEAN":
 		return BooleanType, true
+	case "VECTOR":
+		return VectorType, true
 	default:
 		return 0, false
 	}
@@ -54,12 +60,13 @@ func ParseDataType(name string) (DataType, bool) {
 
 // Value is a typed SQL value. A zero Value is NULL.
 type Value struct {
-	Type DataType
-	Null bool
-	Int  int64
-	Real float64
-	Str  string
-	Bool bool
+	Type   DataType
+	Null   bool
+	Int    int64
+	Real   float64
+	Str    string
+	Bool   bool
+	Vector []float32
 }
 
 // NullValue returns a NULL value.
@@ -76,6 +83,11 @@ func TextValue(v string) Value { return Value{Type: TextType, Str: v} }
 
 // BoolValue returns a BOOLEAN value.
 func BoolValue(v bool) Value { return Value{Type: BooleanType, Bool: v} }
+
+// VectorValue returns a VECTOR value. The input is copied.
+func VectorValue(v []float32) Value {
+	return Value{Type: VectorType, Vector: append([]float32(nil), v...)}
+}
 
 // IsNull reports whether the value is NULL.
 func (v Value) IsNull() bool { return v.Null }
@@ -97,6 +109,12 @@ func (v Value) String() string {
 			return "true"
 		}
 		return "false"
+	case VectorType:
+		parts := make([]string, len(v.Vector))
+		for i, component := range v.Vector {
+			parts[i] = strconv.FormatFloat(float64(component), 'g', -1, 32)
+		}
+		return "[" + strings.Join(parts, ", ") + "]"
 	default:
 		return "NULL"
 	}
@@ -109,6 +127,13 @@ func (v Value) Literal() string {
 	}
 	if v.Type == TextType {
 		return "'" + strings.ReplaceAll(v.Str, "'", "''") + "'"
+	}
+	if v.Type == VectorType {
+		parts := make([]string, len(v.Vector))
+		for i, component := range v.Vector {
+			parts[i] = strconv.FormatFloat(float64(component), 'g', -1, 32)
+		}
+		return "VECTOR(" + strings.Join(parts, ", ") + ")"
 	}
 	return v.String()
 }
@@ -130,6 +155,13 @@ func (v Value) Key() string {
 			return "b:1"
 		}
 		return "b:0"
+	case VectorType:
+		var b strings.Builder
+		b.WriteString("v:")
+		for _, component := range v.Vector {
+			fmt.Fprintf(&b, "%08x", math.Float32bits(component))
+		}
+		return b.String()
 	default:
 		return "n:"
 	}
@@ -290,6 +322,22 @@ func Coerce(v Value, typ DataType) (Value, error) {
 			}
 			return Value{}, fmt.Errorf("sql: cannot store %q in BOOLEAN column", v.Str)
 		}
+	case VectorType:
+		if v.Type == VectorType {
+			return VectorValue(v.Vector), nil
+		}
 	}
 	return Value{}, fmt.Errorf("sql: cannot store %s in %s column", v.Type, typ)
+}
+
+// CoerceColumn converts a value and validates a VECTOR column dimension.
+func CoerceColumn(v Value, col Column) (Value, error) {
+	coerced, err := Coerce(v, col.Type)
+	if err != nil {
+		return Value{}, err
+	}
+	if !coerced.Null && col.Type == VectorType && len(coerced.Vector) != col.VectorDim {
+		return Value{}, fmt.Errorf("sql: vector for column %s has dimension %d, want %d", col.Name, len(coerced.Vector), col.VectorDim)
+	}
+	return coerced, nil
 }

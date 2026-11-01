@@ -315,12 +315,22 @@ func (p *Parser) parseColumnDef() (ColumnDef, error) {
 	if err := p.next(); err != nil {
 		return col, err
 	}
-	if p.isSymbol("(") { // VARCHAR(n)
+	if p.isSymbol("(") { // VARCHAR(n) or VECTOR(n)
 		if err := p.next(); err != nil {
 			return col, err
 		}
 		if p.tok.Kind != TokenInt {
 			return col, p.errorf("expected a length")
+		}
+		length, parseErr := strconv.Atoi(p.tok.Text)
+		if parseErr != nil {
+			return col, p.errorf("invalid type length %q", p.tok.Text)
+		}
+		if typ == VectorType {
+			if length <= 0 {
+				return col, p.errorf("VECTOR dimension must be positive")
+			}
+			col.VectorDim = length
 		}
 		if err := p.next(); err != nil {
 			return col, err
@@ -328,6 +338,9 @@ func (p *Parser) parseColumnDef() (ColumnDef, error) {
 		if err := p.expectSymbol(")"); err != nil {
 			return col, err
 		}
+	}
+	if typ == VectorType && col.VectorDim == 0 {
+		return col, p.errorf("VECTOR requires a dimension, for example VECTOR(3)")
 	}
 
 	for {

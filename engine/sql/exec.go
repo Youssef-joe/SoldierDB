@@ -239,7 +239,7 @@ func execInsert(tx *db.Tx, stmt *Insert) (res *Result, err error) {
 			if err != nil {
 				return nil, err
 			}
-			value, err = Coerce(value, table.Columns[idx].Type)
+			value, err = CoerceColumn(value, table.Columns[idx])
 			if err != nil {
 				return nil, fmt.Errorf("sql: column %s: %w", table.Columns[idx].Name, err)
 			}
@@ -688,7 +688,7 @@ func execUpdate(tx *db.Tx, stmt *Update) (res *Result, err error) {
 			if err != nil {
 				return nil, err
 			}
-			value, err = Coerce(value, table.Columns[idx].Type)
+			value, err = CoerceColumn(value, table.Columns[idx])
 			if err != nil {
 				return nil, fmt.Errorf("sql: column %s: %w", table.Columns[idx].Name, err)
 			}
@@ -823,9 +823,13 @@ func execDescribe(tx *db.Tx, stmt *Describe) (*Result, error) {
 		if col.PrimaryKey {
 			primary = "YES"
 		}
+		typeName := col.Type.String()
+		if col.Type == VectorType {
+			typeName = fmt.Sprintf("VECTOR(%d)", col.VectorDim)
+		}
 		rows[i] = []Value{
 			TextValue(col.Name),
-			TextValue(col.Type.String()),
+			TextValue(typeName),
 			TextValue(nullable),
 			defaultValue,
 			TextValue(primary),

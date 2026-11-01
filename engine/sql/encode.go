@@ -16,6 +16,7 @@ const (
 	tagReal
 	tagText
 	tagBool
+	tagVector
 )
 
 // encodePK encodes a primary key so that byte order matches value order.
@@ -68,6 +69,15 @@ func encodeRow(row []Value) ([]byte, error) {
 			} else {
 				buf = append(buf, 0)
 			}
+		case VectorType:
+			buf = append(buf, tagVector)
+			n := binary.PutUvarint(scratch[:], uint64(len(v.Vector)))
+			buf = append(buf, scratch[:n]...)
+			for _, component := range v.Vector {
+				var b [4]byte
+				binary.LittleEndian.PutUint32(b[:], math.Float32bits(component))
+				buf = append(buf, b[:]...)
+			}
 		default:
 			return nil, fmt.Errorf("sql: cannot encode value of type %s", v.Type)
 		}
@@ -119,10 +129,22 @@ func decodeRow(data []byte, table *Table) ([]Value, error) {
 			}
 			v = BoolValue(data[pos] != 0)
 			pos++
+		case tagVector:
+			n, adv := binary.Uvarint(data[pos:])
+			if adv <= 0 || n > uint64((len(data)-pos-adv)/4) {
+				return nil, fmt.Errorf("sql: truncated vector in row")
+			}
+			pos += adv
+			vector := make([]float32, int(n))
+			for i := range vector {
+				vector[i] = math.Float32frombits(binary.LittleEndian.Uint32(data[pos : pos+4]))
+				pos += 4
+			}
+			v = VectorValue(vector)
 		default:
 			return nil, fmt.Errorf("sql: unknown row tag %d", tag)
 		}
-		coerced, err := Coerce(v, table.Columns[i].Type)
+		coerced, err := CoerceColumn(v, table.Columns[i])
 		if err != nil {
 			return nil, fmt.Errorf("sql: column %s: %w", table.Columns[i].Name, err)
 		}
