@@ -87,13 +87,11 @@ func repl(engine *sql.Engine) error {
 
 		trimmed := strings.TrimSpace(line)
 		if buffer.Len() == 0 {
-			switch trimmed {
-			case "":
-				continue
-			case "\\q", "\\quit", "exit", "quit":
+			handled, quit := handleMetaCommand(engine, trimmed)
+			if quit {
 				return nil
-			case "\\help", "help":
-				printHelp()
+			}
+			if handled {
 				continue
 			}
 		}
@@ -158,7 +156,11 @@ func printResult(res *sql.Result) {
 func printHelp() {
 	fmt.Print(`YousDB shell commands:
   \q, \quit        quit the shell
-  \help            show this help
+  \h, \help        show this help
+  \dt, \tables      list tables
+  \d TABLE          describe a table
+  \vector           show a vector search example
+  \clear, \cls      clear the terminal
 
 SQL statements end with a semicolon. Examples:
   CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, age INTEGER);
@@ -168,6 +170,38 @@ SQL statements end with a semicolon. Examples:
   SHOW TABLES;
   DESCRIBE users;
 `)
+}
+
+func handleMetaCommand(engine *sql.Engine, command string) (handled, quit bool) {
+	fields := strings.Fields(command)
+	if len(fields) == 0 {
+		return true, false
+	}
+	switch fields[0] {
+	case "\\q", "\\quit", "exit", "quit":
+		return true, true
+	case "\\h", "\\help", "help":
+		printHelp()
+		return true, false
+	case "\\dt", "\\tables":
+		execute(engine, "SHOW TABLES;")
+		return true, false
+	case "\\d", "\\describe":
+		if len(fields) != 2 {
+			fmt.Fprintln(os.Stderr, "usage: \\d TABLE")
+		} else {
+			execute(engine, "DESCRIBE "+fields[1]+";")
+		}
+		return true, false
+	case "\\vector":
+		fmt.Print("Vector search example:\n  CREATE TABLE docs (id INTEGER PRIMARY KEY, embedding VECTOR(3));\n  SELECT id FROM docs ORDER BY cosine_distance(embedding, VECTOR(1, 0, 0)) LIMIT 10;\n")
+		return true, false
+	case "\\clear", "\\cls":
+		fmt.Print("\033[H\033[2J")
+		return true, false
+	default:
+		return false, false
+	}
 }
 
 // completeStatement reports whether s contains a semicolon outside of string

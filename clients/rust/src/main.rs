@@ -74,10 +74,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Options, String> {
                     .ok_or_else(|| format!("{arg} requires a path"))?;
             }
             "-c" | "--command" => {
-                options.command = Some(
-                    args.next()
-                        .ok_or_else(|| format!("{arg} requires SQL"))?,
-                );
+                options.command = Some(args.next().ok_or_else(|| format!("{arg} requires SQL"))?);
             }
             _ if arg.starts_with('-') && arg != "-" => {
                 return Err(format!("unknown option {arg}\n\n{USAGE}"));
@@ -104,7 +101,11 @@ fn repl(db: &Database) -> io::Result<()> {
 
     loop {
         if interactive {
-            let prompt = if buffer.is_empty() { "yousdb> " } else { "   ...> " };
+            let prompt = if buffer.is_empty() {
+                "yousdb> "
+            } else {
+                "   ...> "
+            };
             print!("{prompt}");
             io::stdout().flush()?;
         }
@@ -115,14 +116,15 @@ fn repl(db: &Database) -> io::Result<()> {
         let line = line?;
 
         if buffer.is_empty() {
-            match line.trim() {
-                "" => continue,
-                "\\q" | "\\quit" | "exit" | "quit" => return Ok(()),
-                "\\help" | "help" => {
-                    print_help();
-                    continue;
-                }
-                _ => {}
+            match handle_meta_command(db, line.trim())
+                .map_err(|error| io::Error::new(io::ErrorKind::Other, error))?
+            {
+                Some(true) => return Ok(()),
+                Some(false) => continue,
+                None => {}
+            }
+            if line.trim().is_empty() {
+                continue;
             }
         }
 
@@ -209,7 +211,11 @@ fn print_help() {
     print!(
         "YousDB shell commands:\n\
          \x20 \\q, \\quit        quit the shell\n\
-         \x20 \\help            show this help\n\
+         \x20 \\h, \\help        show this help\n\
+         \x20 \\dt, \\tables      list tables\n\
+         \x20 \\d TABLE          describe a table\n\
+         \x20 \\vector           show a vector search example\n\
+         \x20 \\clear, \\cls      clear the terminal\n\
          \n\
          SQL statements end with a semicolon. Examples:\n\
          \x20 CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, age INTEGER);\n\
@@ -219,6 +225,47 @@ fn print_help() {
          \x20 SHOW TABLES;\n\
          \x20 DESCRIBE users;\n"
     );
+}
+
+/// Handles a shell command. `Some(true)` means quit, `Some(false)` means the
+/// command was handled, and `None` means the input is SQL.
+fn handle_meta_command(db: &Database, command: &str) -> Result<Option<bool>, String> {
+    let fields: Vec<&str> = command.split_whitespace().collect();
+    if fields.is_empty() {
+        return Ok(Some(false));
+    }
+    match fields[0] {
+        "\\q" | "\\quit" | "exit" | "quit" => Ok(Some(true)),
+        "\\h" | "\\help" | "help" => {
+            print_help();
+            Ok(Some(false))
+        }
+        "\\dt" | "\\tables" => {
+            let result = db.exec("SHOW TABLES;").map_err(|e| e.to_string())?;
+            print_result(&result);
+            Ok(Some(false))
+        }
+        "\\d" | "\\describe" => {
+            if fields.len() != 2 {
+                eprintln!("usage: \\d TABLE");
+            } else {
+                let sql = format!("DESCRIBE {};", fields[1]);
+                let result = db.exec(&sql).map_err(|e| e.to_string())?;
+                print_result(&result);
+            }
+            Ok(Some(false))
+        }
+        "\\vector" => {
+            println!("Vector search example:\n  CREATE TABLE docs (id INTEGER PRIMARY KEY, embedding VECTOR(3));\n  SELECT id FROM docs ORDER BY cosine_distance(embedding, VECTOR(1, 0, 0)) LIMIT 10;");
+            Ok(Some(false))
+        }
+        "\\clear" | "\\cls" => {
+            print!("\x1b[H\x1b[2J");
+            io::stdout().flush().map_err(|e| e.to_string())?;
+            Ok(Some(false))
+        }
+        _ => Ok(None),
+    }
 }
 
 /// Reports whether `sql` contains a semicolon outside string literals, quoted

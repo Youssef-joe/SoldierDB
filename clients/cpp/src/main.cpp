@@ -2,6 +2,139 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
+
+#if defined(_WIN32)
+#include <io.h>
+#define YOUSDB_ISATTY _isatty(_fileno(stdin))
+#else
+#include <unistd.h>
+#define YOUSDB_ISATTY isatty(fileno(stdin))
+#endif
+
+namespace {
+
+void print_help() {
+    std::cout << "YousDB shell commands:\n"
+              << "  \\q, \\quit        quit the shell\n"
+              << "  \\h, \\help        show this help\n"
+              << "  \\dt, \\tables      list tables\n"
+              << "  \\d TABLE          describe a table\n"
+              << "  \\vector           show a vector search example\n"
+              << "  \\clear, \\cls      clear the terminal\n\n"
+              << "SQL statements end with a semicolon.\n";
+}
+
+void print_result(const yousdb::Result& result) {
+    if (result.columns().empty()) {
+        if (!result.message().empty()) std::cout << result.message() << '\n';
+        return;
+    }
+    for (std::size_t i = 0; i < result.columns().size(); ++i) {
+        if (i) std::cout << "\t";
+        std::cout << result.columns()[i];
+    }
+    std::cout << '\n';
+    for (const auto& row : result.rows()) {
+        for (std::size_t i = 0; i < row.size(); ++i) {
+            if (i) std::cout << "\t";
+            std::cout << row[i].to_string();
+        }
+        std::cout << '\n';
+    }
+    std::cout << "(" << result.rows().size() << (result.rows().size() == 1 ? " row)\n" : " rows)\n");
+}
+
+bool complete_statement(const std::string& sql) {
+    bool single = false;
+    bool doubled = false;
+    for (std::size_t i = 0; i < sql.size(); ++i) {
+        const char c = sql[i];
+        if (single) {
+            if (c == '\'' && i + 1 < sql.size() && sql[i + 1] == '\'') ++i;
+            else if (c == '\'') single = false;
+        } else if (doubled) {
+            if (c == '"' && i + 1 < sql.size() && sql[i + 1] == '"') ++i;
+            else if (c == '"') doubled = false;
+        } else if (c == '\'') {
+            single = true;
+        } else if (c == '"') {
+            doubled = true;
+        } else if (c == ';') {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Returns true when handled, and sets quit when the command requests exit.
+bool meta_command(yousdb::Database& db, const std::string& input, bool& quit) {
+    std::istringstream stream(input);
+    std::string command;
+    stream >> command;
+    if (command.empty()) return true;
+    if (command == "\\q" || command == "\\quit" || command == "exit" || command == "quit") {
+        quit = true;
+        return true;
+    }
+    if (command == "\\h" || command == "\\help" || command == "help") {
+        print_help();
+        return true;
+    }
+    if (command == "\\dt" || command == "\\tables") {
+        print_result(db.exec("SHOW TABLES;"));
+        return true;
+    }
+    if (command == "\\d" || command == "\\describe") {
+        std::string table;
+        stream >> table;
+        if (table.empty()) std::cerr << "usage: \\d TABLE\n";
+        else print_result(db.exec("DESCRIBE " + table + ";"));
+        return true;
+    }
+    if (command == "\\vector") {
+        std::cout << "Vector search example:\n  CREATE TABLE docs (id INTEGER PRIMARY KEY, embedding VECTOR(3));\n  SELECT id FROM docs ORDER BY cosine_distance(embedding, VECTOR(1, 0, 0)) LIMIT 10;\n";
+        return true;
+    }
+    if (command == "\\clear" || command == "\\cls") {
+        std::cout << "\033[H\033[2J" << std::flush;
+        return true;
+    }
+    return false;
+}
+
+int repl(yousdb::Database& db) {
+    const bool interactive = YOUSDB_ISATTY != 0;
+    if (interactive) std::cout << "YousDB C++ shell. Type \\help for help, \\q to quit.\n";
+    std::string buffer;
+    std::string line;
+    while (true) {
+        if (interactive) std::cout << (buffer.empty() ? "yousdb> " : "   ...> ") << std::flush;
+        if (!std::getline(std::cin, line)) break;
+        if (buffer.empty()) {
+            bool quit = false;
+            if (meta_command(db, line, quit)) {
+                if (quit) return 0;
+                continue;
+            }
+        }
+        buffer += line + '\n';
+        if (!complete_statement(buffer)) continue;
+        try {
+            print_result(db.exec(buffer));
+        } catch (const yousdb::Error& error) {
+            std::cerr << "error: " << error.what() << '\n';
+        }
+        buffer.clear();
+    }
+    if (!buffer.empty()) {
+        try { print_result(db.exec(buffer)); }
+        catch (const yousdb::Error& error) { std::cerr << "error: " << error.what() << '\n'; }
+    }
+    return 0;
+}
+
+} // namespace
 
 int main(int argc, char** argv) {
     std::string path = "yousdb.db";
@@ -9,7 +142,8 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-h" || arg == "--help") {
-            std::cout << "Usage: yousdb-cpp [-db PATH] [-c SQL] [SQL]\n";
+            std::cout << "Usage: yousdb-cpp [-db PATH] [-c SQL] [SQL]\n"
+                      << "With no SQL argument, starts the interactive shell.\n";
             return 0;
         }
         if ((arg == "-db" || arg == "--db" || arg == "-c" || arg == "--command") && i + 1 < argc) {
@@ -27,27 +161,8 @@ int main(int argc, char** argv) {
 
     try {
         auto db = yousdb::Database::open(path);
-        if (sql.empty()) {
-            std::cout << "Provide SQL with -c or as the final argument.\n";
-            return 0;
-        }
-        auto result = db.exec(sql);
-        if (result.columns().empty()) {
-            if (!result.message().empty()) std::cout << result.message() << '\n';
-            return 0;
-        }
-        for (std::size_t i = 0; i < result.columns().size(); ++i) {
-            if (i) std::cout << "\t";
-            std::cout << result.columns()[i];
-        }
-        std::cout << '\n';
-        for (const auto& row : result.rows()) {
-            for (std::size_t i = 0; i < row.size(); ++i) {
-                if (i) std::cout << "\t";
-                std::cout << row[i].to_string();
-            }
-            std::cout << '\n';
-        }
+        if (sql.empty()) return repl(db);
+        print_result(db.exec(sql));
         return 0;
     } catch (const yousdb::Error& error) {
         std::cerr << "error: " << error.what() << '\n';
