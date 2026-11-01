@@ -1,0 +1,21 @@
+[package]
+name = "yousdb"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+description = "Safe Rust client for the YousDB SQL engine"
+license = "MIT"
+publish = false
+
+[lib]
+name = "yousdb"
+path = "src/lib.rs"
+
+[[bin]]
+name = "yousdb-rs"
+path = "src/main.rs"
+
+[dependencies]
+
+[profile.release]
+lto = true
