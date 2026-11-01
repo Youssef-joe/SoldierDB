@@ -68,6 +68,7 @@ type Pager struct {
 	meta     Meta
 	metaSlot int
 	closed   bool
+	noSync   bool
 
 	// freePrev holds pages that are free in the committed meta and may be
 	// reused right now. freeNew holds pages that became free during the
@@ -87,18 +88,31 @@ type txState struct {
 	freeNew   []uint64
 }
 
+// Options configures a Pager.
+type Options struct {
+	// NoSync skips fsync after writes. It is intended for tests and
+	// benchmarks; a real database must sync.
+	NoSync bool
+}
+
 // Open opens or creates a database file at path.
 func Open(path string) (*Pager, error) {
+	return OpenWithOptions(path, Options{})
+}
+
+// OpenWithOptions opens or creates a database file with explicit options.
+func OpenWithOptions(path string, opts Options) (*Pager, error) {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
 		return nil, err
 	}
 
 	p := &Pager{
-		file:  f,
-		path:  path,
-		cache: make(map[uint64][]byte),
-		dirty: make(map[uint64]struct{}),
+		file:   f,
+		path:   path,
+		cache:  make(map[uint64][]byte),
+		dirty:  make(map[uint64]struct{}),
+		noSync: opts.NoSync,
 	}
 
 	info, err := f.Stat()
@@ -142,7 +156,7 @@ func (p *Pager) initFile() error {
 	if err := p.file.Truncate(2 * PageSize); err != nil {
 		return err
 	}
-	return p.file.Sync()
+	return p.sync()
 }
 
 func (p *Pager) loadMeta() error {
@@ -215,6 +229,13 @@ func (p *Pager) writeMetaPage(slot int, m Meta) error {
 	encodeMeta(page, m)
 	_, err := p.file.WriteAt(page, int64(slot*PageSize))
 	return err
+}
+
+func (p *Pager) sync() error {
+	if p.noSync {
+		return nil
+	}
+	return p.file.Sync()
 }
 
 func (p *Pager) loadFreeList() error {
@@ -338,7 +359,7 @@ func (p *Pager) Commit() error {
 	if err := p.flushDirty(); err != nil {
 		return err
 	}
-	if err := p.file.Sync(); err != nil {
+	if err := p.sync(); err != nil {
 		return err
 	}
 
@@ -352,7 +373,7 @@ func (p *Pager) Commit() error {
 	if err := p.writeMetaPage(slot, next); err != nil {
 		return err
 	}
-	if err := p.file.Sync(); err != nil {
+	if err := p.sync(); err != nil {
 		return err
 	}
 
