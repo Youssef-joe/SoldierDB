@@ -1,10 +1,9 @@
 // Package db provides the durable key-value database built on the pager and
-// B+tree. Operations are autocommitted until the transaction API is used.
+// B+tree, with snapshot transactions and atomic commits.
 package db
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/Youssef-joe/YousDB/engine/btree"
@@ -54,8 +53,7 @@ func OpenWithOptions(path string, opts Options) (*DB, error) {
 	return &DB{pager: p}, nil
 }
 
-// Close flushes nothing and closes the file. Every operation is already
-// committed.
+// Close closes the database. Every operation is already committed.
 func (db *DB) Close() error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -66,10 +64,10 @@ func (db *DB) Close() error {
 	return db.pager.Close()
 }
 
-func (db *DB) tree() *btree.Tree {
+func (db *DB) treeAt(root uint64) *btree.Tree {
 	p := db.pager
 	return btree.New(
-		p.Root(),
+		root,
 		p.Get,
 		func(data []byte) uint64 {
 			pageNo := p.Alloc()
@@ -82,40 +80,30 @@ func (db *DB) tree() *btree.Tree {
 
 // Get returns a copy of the value for key.
 func (db *DB) Get(key []byte) ([]byte, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-	if db.closed {
-		return nil, ErrClosed
-	}
-	value, ok := db.tree().Get(key)
-	if !ok {
-		return nil, ErrNotFound
-	}
-	return append([]byte(nil), value...), nil
+	var out []byte
+	err := db.View(func(tx *Tx) error {
+		value, err := tx.Get(key)
+		if err != nil {
+			return err
+		}
+		out = value
+		return nil
+	})
+	return out, err
 }
 
 // Set inserts or replaces key.
 func (db *DB) Set(key, value []byte) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if db.closed {
-		return ErrClosed
-	}
-	return db.update(func(tree *btree.Tree) error {
-		return tree.Insert(key, value)
+	return db.Update(func(tx *Tx) error {
+		return tx.Set(key, value)
 	})
 }
 
 // Delete removes key and reports whether it existed.
 func (db *DB) Delete(key []byte) (bool, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if db.closed {
-		return false, ErrClosed
-	}
 	removed := false
-	err := db.update(func(tree *btree.Tree) error {
-		removed = tree.Delete(key)
+	err := db.Update(func(tx *Tx) error {
+		removed = tx.Delete(key)
 		return nil
 	})
 	return removed, err
@@ -125,31 +113,24 @@ func (db *DB) Delete(key []byte) (bool, error) {
 // callback receives slices that are only valid during the call and returns
 // false to stop.
 func (db *DB) Scan(start, end []byte, fn func(key, value []byte) bool) error {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-	if db.closed {
-		return ErrClosed
-	}
-	db.tree().Scan(start, end, fn)
-	return nil
+	return db.View(func(tx *Tx) error {
+		return tx.Scan(start, end, fn)
+	})
 }
 
 // Pairs returns a copy of all pairs in [start, end). Nil bounds are unbounded.
 func (db *DB) Pairs(start, end []byte) ([]kv.Pair, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-	if db.closed {
-		return nil, ErrClosed
-	}
 	var pairs []kv.Pair
-	db.tree().Scan(start, end, func(key, value []byte) bool {
-		pairs = append(pairs, kv.Pair{
-			Key:   string(key),
-			Value: append([]byte(nil), value...),
+	err := db.View(func(tx *Tx) error {
+		return tx.Scan(start, end, func(key, value []byte) bool {
+			pairs = append(pairs, kv.Pair{
+				Key:   string(key),
+				Value: append([]byte(nil), value...),
+			})
+			return true
 		})
-		return true
 	})
-	return pairs, nil
+	return pairs, err
 }
 
 // Stats returns the committed state.
@@ -162,21 +143,4 @@ func (db *DB) Stats() Stats {
 		Pages:     db.pager.PageCount(),
 		FreePages: db.pager.FreeCount(),
 	}
-}
-
-func (db *DB) update(fn func(tree *btree.Tree) error) error {
-	if err := db.pager.Begin(); err != nil {
-		return err
-	}
-	tree := db.tree()
-	if err := fn(tree); err != nil {
-		db.pager.Abort()
-		return err
-	}
-	db.pager.SetRoot(tree.Root())
-	if err := db.pager.Commit(); err != nil {
-		db.pager.Abort()
-		return fmt.Errorf("db: commit: %w", err)
-	}
-	return nil
 }
