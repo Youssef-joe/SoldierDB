@@ -1,10 +1,10 @@
-# SoldierSB
+# SoldierDB
 
 A relational database built from scratch: a crash-safe page store, a
 copy-on-write B+tree, transactions, and a SQL layer — written in Go and exposed
 to Rust and C++ through a stable C ABI.
 
-SoldierSB follows [Build Your Own Database From Scratch in Go](https://build-your-own.org/database/)
+SoldierDB follows [Build Your Own Database From Scratch in Go](https://build-your-own.org/database/)
 for the storage engine, then extends it with a real SQL front end.
 
 ## Status
@@ -38,7 +38,7 @@ SELECT name, age FROM users WHERE age > 40 ORDER BY name;
 ## Project Layout
 
 ```text
-cmd/SoldierSB/        SQL shell / CLI
+cmd/SoldierDB/        SQL shell / CLI
 engine/pager/      fixed-size page file, meta pages, crash recovery
 engine/btree/      copy-on-write B+tree
 engine/db/         durable KV facade and transactions
@@ -56,7 +56,7 @@ docs/              design notes and roadmap
 make fmt           # gofmt the Go sources
 make test          # Go tests
 make build         # build the SQL CLI
-make shared        # build libSoldierSB shared library and header
+make shared        # build libSoldierDB shared library and header
 make rust          # build the Rust client
 make cpp           # build the C++ client
 make check         # fmt check + Go tests + C, Rust and C++ client tests
@@ -64,7 +64,7 @@ make check         # fmt check + Go tests + C, Rust and C++ client tests
 
 ## Vector search
 
-SoldierSB supports fixed-dimension `VECTOR` columns and brute-force similarity
+SoldierDB supports fixed-dimension `VECTOR` columns and brute-force similarity
 search. See [`docs/VECTOR.md`](docs/VECTOR.md) for the full syntax. A minimal
 query looks like this:
 
