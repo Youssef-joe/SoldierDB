@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SoldierDB: holds the line on your data</title>
+<meta name="description" content="SoldierDB is a relational database built from scratch in Go: a crash-safe page store, a copy-on-write B+tree, transactions, SQL and vector search, with Rust and C++ clients over a C ABI.">
+<meta property="og:title" content="SoldierDB">
+<meta property="og:description" content="A from-scratch relational database that never overwrites a committed page.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Archivo:wght@400;500;700;800&family=Special+Elite&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#ECE2C6; --paper-2:#E2D5B1; --paper-3:#D5C59B;
+  --ink:#1F1D17; --ink-2:#4A4535; --ink-3:#6F6852;
+  --olive:#3F4A1F; --olive-2:#566329; --brass:#B5893A; --red:#9E2B25;
+  --line:rgba(31,29,23,.22);
+  --code-bg:#1F1D17; --code-ink:#E9DFC1; --code-dim:#9C9378; --code-key:#D9A94E; --code-str:#A9B86C;
+  --radius:4px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1C1E14; --paper-2:#24271A; --paper-3:#2E3221;
+    --ink:#ECE2C6; --ink-2:#C8BE9F; --ink-3:#9A9277;
+    --olive:#7E8E3C; --olive-2:#97A84A; --brass:#D2A24C; --red:#D0564C;
+    --line:rgba(236,226,198,.18);
+    --code-bg:#111209;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1C1E14; --paper-2:#24271A; --paper-3:#2E3221;
+  --ink:#ECE2C6; --ink-2:#C8BE9F; --ink-3:#9A9277;
+  --olive:#7E8E3C; --olive-2:#97A84A; --brass:#D2A24C; --red:#D0564C;
+  --line:rgba(236,226,198,.18);
+  --code-bg:#111209;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:400 17px/1.6 "Archivo",system-ui,sans-serif;
+  background-image:
+    radial-gradient(rgba(120,100,60,.08) 1px, transparent 1px),
+    radial-gradient(rgba(120,100,60,.05) 1px, transparent 1px);
+  background-size:7px 7px, 13px 13px; background-position:0 0, 3px 5px;
+}
+a{color:inherit}
+.wrap{max-width:1160px; margin:0 auto; padding:0 24px}
+.stencil{font-family:"Black Ops One",Impact,sans-serif; letter-spacing:.02em; font-weight:400}
+.type{font-family:"Special Elite",ui-monospace,monospace}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* Top bar */
+header.top{position:sticky; top:0; z-index:10; background:color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter:blur(6px); border-bottom:2px solid var(--ink)}
+.top .wrap{display:flex; align-items:center; gap:24px; height:64px}
+.brand{display:flex; align-items:center; gap:10px; text-decoration:none; font-size:22px}
+.brand img{width:38px; height:38px}
+nav.links{margin-left:auto; display:flex; gap:22px; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.08em}
+nav.links a{text-decoration:none; padding:4px 0; border-bottom:2px solid transparent}
+nav.links a:hover{border-color:var(--red)}
+.btn{display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border:2px solid var(--ink); border-radius:var(--radius); font-weight:800; text-transform:uppercase; letter-spacing:.08em; font-size:14px; text-decoration:none; box-shadow:4px 4px 0 var(--ink); transition:transform .12s, box-shadow .12s}
+.btn:hover{transform:translate(2px,2px); box-shadow:2px 2px 0 var(--ink)}
+.btn.primary{background:var(--red); color:#F3EAD2; border-color:var(--ink)}
+.btn.ghost{background:var(--paper)}
+.top .btn{padding:8px 14px; font-size:12px; box-shadow:3px 3px 0 var(--ink)}
+
+/* Hero */
+.hero{border-bottom:2px solid var(--ink); overflow:hidden}
+.hero .wrap{display:grid; grid-template-columns:1.05fr .95fr; gap:40px; align-items:center; padding-top:56px; padding-bottom:56px}
+.kicker{display:inline-block; font-size:13px; text-transform:uppercase; letter-spacing:.18em; border:1.5px solid var(--ink); padding:4px 10px; margin-bottom:22px}
+h1{font-size:clamp(46px,7vw,92px); line-height:.92; margin:0 0 22px; text-transform:uppercase}
+h1 em{font-style:normal; color:var(--red)}
+.lede{font-size:20px; color:var(--ink-2); max-width:34ch; margin:0 0 30px}
+.cta{display:flex; flex-wrap:wrap; gap:16px}
+.poster{position:relative; aspect-ratio:4/5; max-width:480px; justify-self:end; width:100%; border:3px solid var(--ink); background:var(--paper-2); box-shadow:10px 10px 0 var(--olive)}
+.poster svg{display:block; width:100%; height:100%}
+.stamp{position:absolute; top:22px; right:-14px; transform:rotate(9deg); border:3px solid var(--red); color:var(--red); padding:6px 14px; font-size:20px; background:color-mix(in srgb, var(--paper) 70%, transparent); text-transform:uppercase; mix-blend-mode:multiply}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .stamp{mix-blend-mode:normal}}
+:root[data-theme="dark"] .stamp{mix-blend-mode:normal}
+
+/* Specs strip */
+.specs{background:var(--olive); color:#EFE6CB; border-bottom:2px solid var(--ink)}
+.specs .wrap{display:grid; grid-template-columns:repeat(4,1fr)}
+.spec{padding:22px 18px; border-left:1px dashed rgba(239,230,203,.35)}
+.spec:first-child{border-left:0}
+.spec b{display:block; font-family:"Black Ops One",Impact,sans-serif; font-size:30px; font-weight:400; color:#F1D58F}
+.spec span{font-size:14px; opacity:.9}
+
+/* Sections */
+section.block{padding:84px 0; border-bottom:2px solid var(--ink)}
+.sec-head{display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:40px; flex-wrap:wrap}
+.sec-head h2{font-size:clamp(34px,4.5vw,54px); line-height:1; margin:6px 0 0; text-transform:uppercase}
+.sec-head p{max-width:46ch; margin:0; color:var(--ink-2)}
+.eyebrow{font-size:13px; text-transform:uppercase; letter-spacing:.2em; color:var(--red)}
+
+/* Field manual cards */
+.manual{display:grid; grid-template-columns:repeat(3,1fr); gap:22px}
+.card{background:var(--paper-2); border:2px solid var(--ink); border-radius:var(--radius); padding:24px 22px 22px; position:relative}
+.card .fm{position:absolute; top:-13px; left:18px; background:var(--ink); color:var(--paper); font-size:12px; padding:3px 10px; letter-spacing:.1em}
+.card h3{margin:6px 0 8px; font-size:20px; line-height:1.2}
+.card p{margin:0; color:var(--ink-2); font-size:15.5px}
+.card .ico{width:44px; height:44px; margin-bottom:8px}
+
+/* Chain of command */
+.chain{display:grid; grid-template-columns:.8fr 1.2fr; gap:48px; align-items:center}
+.ranks{display:flex; flex-direction:column; gap:10px}
+.rank{display:grid; grid-template-columns:64px 1fr; gap:16px; align-items:center; background:var(--paper-2); border:2px solid var(--ink); padding:12px 16px; border-radius:var(--radius)}
+.rank .chev{display:flex; flex-direction:column; align-items:center; gap:2px}
+.rank .chev i{display:block; width:34px; height:10px; background:var(--brass); clip-path:polygon(0 100%,50% 0,100% 100%,82% 100%,50% 36%,18% 100%)}
+.rank b{font-size:16px}
+.rank code{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--olive-2); font-weight:600}
+.rank small{display:block; color:var(--ink-3); font-size:14px}
+.troop{border:3px solid var(--ink); background:var(--paper-2); box-shadow:8px 8px 0 var(--brass)}
+.troop svg{display:block; width:100%; height:auto}
+
+/* Orders */
+.orders{display:grid; grid-template-columns:1fr 1fr; gap:22px}
+.order{border:2px solid var(--ink); border-radius:var(--radius); overflow:hidden; background:var(--code-bg)}
+.order .bar{display:flex; justify-content:space-between; align-items:center; background:var(--ink); color:var(--paper); padding:8px 14px; font-size:13px; letter-spacing:.08em; text-transform:uppercase}
+:root[data-theme="dark"] .order .bar{background:var(--paper-3); color:var(--ink)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .order .bar{background:var(--paper-3); color:var(--ink)}}
+.order pre{margin:0; padding:18px; color:var(--code-ink); font:400 14px/1.7 "IBM Plex Mono",monospace; overflow-x:auto}
+.order .c{color:var(--code-dim)} .order .k{color:var(--code-key)} .order .s{color:var(--code-str)}
+.copy{background:none; border:1px solid currentColor; color:inherit; font:inherit; font-size:11px; padding:2px 8px; cursor:pointer; border-radius:3px}
+
+/* Campaign */
+.campaign{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
+.phase{border:2px solid var(--ink); border-radius:var(--radius); padding:18px; background:var(--paper-2); position:relative; min-height:170px}
+.phase .n{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3)}
+.phase h4{margin:4px 0 8px; font-size:18px; line-height:1.2}
+.phase ul{margin:0; padding-left:18px; font-size:14px; color:var(--ink-2)}
+.phase.secured{background:var(--olive); color:#EFE6CB; border-color:var(--ink)}
+.phase.secured .n, .phase.secured ul{color:#E4DAB9}
+.phase.next{outline:3px dashed var(--red); outline-offset:4px}
+.tag{position:absolute; top:12px; right:12px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; padding:2px 8px; border:2px solid currentColor; transform:rotate(4deg)}
+.phase.secured .tag{color:#F1D58F}
+.phase.next .tag{color:var(--red)}
+.intel{margin-top:44px; border:2px solid var(--ink); background:var(--paper-2); border-radius:var(--radius)}
+.intel h3{margin:0; padding:14px 18px; border-bottom:2px solid var(--ink); font-size:18px; text-transform:uppercase; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.intel ol{list-style:none; margin:0; padding:0}
+.intel li{display:grid; grid-template-columns:56px 1fr; gap:12px; padding:12px 18px; border-bottom:1px dashed var(--line); font-size:15.5px}
+.intel li:last-child{border-bottom:0}
+.intel li a{text-decoration:none}
+.intel li a:hover{text-decoration:underline}
+.intel .num{font-family:"IBM Plex Mono",monospace; color:var(--red); font-weight:600}
+
+/* Footer */
+footer{padding:48px 0 60px}
+footer .wrap{display:flex; justify-content:space-between; align-items:center; gap:24px; flex-wrap:wrap}
+footer .sign{display:flex; align-items:center; gap:14px}
+footer .sign img{width:52px}
+footer small{color:var(--ink-3)}
+.theme-toggle{background:none; border:2px solid var(--ink); color:var(--ink); border-radius:var(--radius); width:36px; height:36px; cursor:pointer; display:grid; place-items:center}
+
+@media (max-width:960px){
+  .hero .wrap, .chain{grid-template-columns:1fr}
+  .poster{justify-self:center}
+  .manual{grid-template-columns:1fr 1fr}
+  .campaign{grid-template-columns:1fr 1fr}
+  .orders{grid-template-columns:1fr}
+  nav.links{display:none}
+  .top .wrap{justify-content:space-between}
+  .top .btn{margin-left:auto}
+}
+@media (max-width:600px){
+  .wrap{padding:0 16px}
+  .specs .wrap{grid-template-columns:1fr 1fr}
+  .spec:nth-child(3){border-left:0}
+  .manual, .campaign{grid-template-columns:1fr}
+  section.block{padding:60px 0}
+  .stamp{right:6px; font-size:16px}
+  .poster{box-shadow:6px 6px 0 var(--olive)}
+}
+@media (prefers-reduced-motion:no-preference){
+  .beam{animation:sweep 7s ease-in-out infinite alternate; transform-origin:236px 112px}
+  @keyframes sweep{from{transform:rotate(-7deg)}to{transform:rotate(7deg)}}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- A sentry in profile, facing right, rifle at the shoulder. Original illustration. -->
+    <symbol id="sentry" viewBox="20 0 160 470">
+      <!-- rifle at shoulder arms, behind the arm -->
+      <path d="M62 2h5l52 212-6 2z"/>
+      <path d="M58 10l4-10 2 0-1 12z"/>
+      <path d="M106 196l16-5 18 66-20 7z"/>
+      <!-- pack and bedroll -->
+      <rect x="46" y="124" width="38" height="88" rx="10"/>
+      <path d="M56 126c2-18 28-24 42-12l-6 12c-8-8-24-6-26 4z"/>
+      <!-- helmet -->
+      <path d="M78 66c0-30 18-44 34-44 18 0 34 16 34 40l9 4-2 7H71l-2-7z"/>
+      <!-- head in profile -->
+      <path d="M98 72h32l3 8 10 14-6 4 2 6-4 4-1 8-14 4H104l-8-22z"/>
+      <rect x="100" y="104" width="22" height="18"/>
+      <!-- tunic -->
+      <path d="M80 118l52-2 16 34-4 82H80l-8-72z"/>
+      <!-- belt and pouches -->
+      <rect x="76" y="224" width="74" height="9" fill="#B5893A"/>
+      <rect x="128" y="222" width="18" height="18" rx="2"/>
+      <!-- arm, hand on the rifle butt -->
+      <path d="M118 122l22 6 6 62-8 54h-14l4-54-12-50z"/>
+      <circle cx="131" cy="246" r="8"/>
+      <!-- breeches, puttees -->
+      <path d="M82 232h38l2 68-8 36v100H92V336l-10-36z"/>
+      <path d="M106 232h40l4 64-14 40v100h-22V336l-8-36z"/>
+      <!-- boots -->
+      <path d="M88 432h30v22H82z"/>
+      <path d="M110 432h28l18 12v10h-46z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand stencil" href="#top"><img src="logo.svg" alt="">SoldierDB</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#manual">Field manual</a>
+      <a href="#chain">Chain of command</a>
+      <a href="#orders">Orders</a>
+      <a href="#campaign">Campaign</a>
+    </nav>
+    <a class="btn ghost" href="https://github.com/Youssef-joe/SoldierDB">GitHub</a>
+    <button class="theme-toggle" id="theme" aria-label="Toggle dark mode" title="Night ops">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="kicker type">Field manual FM-DB · Edition 1</span>
+      <h1 class="stencil">Holds the line<br>on <em>your data.</em></h1>
+      <p class="lede">A relational database built from scratch in Go. A crash-safe page store, a copy-on-write B+tree, transactions, SQL and vector search, served to Rust and C++ through a stable C ABI.</p>
+      <div class="cta">
+        <a class="btn primary" href="#orders">Read your orders</a>
+        <a class="btn ghost" href="https://github.com/Youssef-joe/SoldierDB">Enlist on GitHub</a>
+      </div>
+    </div>
+
+    <div class="poster" role="img" aria-label="Poster illustration: a sentry in a helmet stands guard in front of stacked crates labelled as database pages, under a sweeping searchlight.">
+      <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="dots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.4" fill="#1F1D17" opacity=".22"/></pattern>
+          <clipPath id="pc"><rect width="400" height="500"/></clipPath>
+        </defs>
+        <g clip-path="url(#pc)">
+          <rect width="400" height="500" fill="#E2D5B1"/>
+          <!-- sunburst -->
+          <g fill="#D3C193">
+            <path d="M200 230 L-40 -40 L40 -40Z"/><path d="M200 230 L110 -40 L190 -40Z"/>
+            <path d="M200 230 L260 -40 L340 -40Z"/><path d="M200 230 L410 -40 L460 30Z"/>
+            <path d="M200 230 L460 140 L460 230Z"/><path d="M200 230 L-60 90 L-60 180Z"/>
+          </g>
+          <circle cx="200" cy="230" r="118" fill="#B5893A"/>
+          <circle cx="200" cy="230" r="118" fill="url(#dots)"/>
+          <!-- searchlight beam -->
+          <g class="beam"><path d="M236 112 L420 -30 L460 40Z" fill="#F4ECD3" opacity=".55"/></g>
+          <!-- ground -->
+          <rect y="410" width="400" height="90" fill="#3F4A1F"/>
+          <rect y="410" width="400" height="90" fill="url(#dots)"/>
+          <!-- page crates, left -->
+          <g font-family="Black Ops One, Impact, sans-serif" font-size="13" text-anchor="middle">
+            <rect x="22" y="348" width="96" height="64" fill="#566329" stroke="#1F1D17" stroke-width="3"/>
+            <path d="M22 348l96 64M118 348l-96 64" stroke="#1F1D17" stroke-width="2" opacity=".35"/>
+            <rect x="34" y="368" width="72" height="22" fill="#E2D5B1"/>
+            <text x="70" y="384" fill="#1F1D17">PAGE 0</text>
+            <rect x="34" y="284" width="84" height="64" fill="#566329" stroke="#1F1D17" stroke-width="3"/>
+            <rect x="42" y="304" width="68" height="22" fill="#E2D5B1"/>
+            <text x="76" y="320" fill="#1F1D17">PAGE 1</text>
+            <rect x="290" y="364" width="88" height="48" fill="#566329" stroke="#1F1D17" stroke-width="3"/>
+            <rect x="298" y="376" width="72" height="22" fill="#E2D5B1"/>
+            <text x="334" y="392" fill="#1F1D17">B+TREE</text>
+          </g>
+          <!-- sentry -->
+          <use href="#sentry" x="132" y="86" width="150" height="368" fill="#1F1D17"/>
+          <!-- caption -->
+          <rect x="0" y="452" width="400" height="48" fill="#1F1D17"/>
+          <text x="200" y="483" text-anchor="middle" font-family="Black Ops One, Impact, sans-serif" font-size="20" fill="#ECE2C6" letter-spacing="2">NO PAGE LEFT BEHIND</text>
+        </g>
+      </svg>
+      <span class="stamp stencil">Crash-safe</span>
+    </div>
+  </div>
+</section>
+
+<div class="specs">
+  <div class="wrap">
+    <div class="spec"><b>4,096</b><span>bytes per page, nothing more, nothing less</span></div>
+    <div class="spec"><b>2</b><span>alternating, checksummed meta pages</span></div>
+    <div class="spec"><b>0</b><span>overwrites of a page reachable from a committed root</span></div>
+    <div class="spec"><b>3</b><span>languages served: Go, Rust and C++</span></div>
+  </div>
+</div>
+
+<section class="block" id="manual">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow type">Section 1</span><h2 class="stencil">The field manual</h2></div>
+      <p>Every layer is written from the page up, with tests against an in-memory oracle. No borrowed storage engine, no magic.</p>
+    </div>
+    <div class="manual">
+      <article class="card"><span class="fm type">FM 1-01</span>
+        <svg class="ico" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="8" y="6" width="22" height="30"/><rect x="14" y="10" width="22" height="30" fill="var(--paper-2)"/><path d="M19 18h12M19 24h12M19 30h8"/></svg>
+        <h3>Crash-safe page store</h3><p>A file of 4 KiB pages. Commits write the inactive meta page last and fsync it, so a crash always leaves one valid root to recover from.</p></article>
+      <article class="card"><span class="fm type">FM 1-02</span>
+        <svg class="ico" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="16" y="4" width="12" height="9"/><rect x="4" y="30" width="12" height="9"/><rect x="28" y="30" width="12" height="9"/><path d="M22 13v8M10 30v-9h24v9"/></svg>
+        <h3>Copy-on-write B+tree</h3><p>Lookups, ordered range scans, splits and merges. A mutation never touches a committed page; freed pages return through a persistent free list.</p></article>
+      <article class="card"><span class="fm type">FM 1-03</span>
+        <svg class="ico" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 22l9 9 19-19"/><circle cx="22" cy="22" r="18"/></svg>
+        <h3>Atomic transactions</h3><p>BEGIN, COMMIT, ROLLBACK. Writes are buffered and published as one batch behind a single meta-page flip.</p></article>
+      <article class="card"><span class="fm type">FM 1-04</span>
+        <svg class="ico" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 10l-8 12 8 12M30 10l8 12-8 12M25 8l-6 28"/></svg>
+        <h3>A real SQL front end</h3><p>Hand-written lexer and recursive-descent parser. Filters, ORDER BY, LIMIT, aggregates, GROUP BY / HAVING, primary keys, UNIQUE, NOT NULL and defaults.</p></article>
+      <article class="card"><span class="fm type">FM 1-05</span>
+        <svg class="ico" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 38L38 6M6 38l10-26M6 38l26-10"/><circle cx="38" cy="6" r="2.5" fill="currentColor"/><circle cx="16" cy="12" r="2.5" fill="currentColor"/><circle cx="32" cy="28" r="2.5" fill="currentColor"/></svg>
+        <h3>Vector search</h3><p>Fixed-dimension <code class="mono">VECTOR(n)</code> columns and distance functions, so you can rank rows by similarity right in SQL.</p></article>
+      <article class="card"><span class="fm type">FM 1-06</span>
+        <svg class="ico" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="22" cy="22" r="6"/><path d="M22 4v12M22 28v12M4 22h12M28 22h12"/></svg>
+        <h3>One engine, three languages</h3><p>A handle-based C ABI with clear memory ownership, wrapped by a safe Rust crate and an RAII C++ client. Each has its own CLI.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="chain">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow type">Section 2</span><h2 class="stencil">Chain of command</h2></div>
+      <p>Orders travel down, results report up. Each layer owns one job and trusts the one beneath it.</p>
+    </div>
+    <div class="chain">
+      <div class="troop" role="img" aria-label="A column of five sentries marching, one for each layer of the engine.">
+        <svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg">
+          <rect width="520" height="300" fill="#E2D5B1"/>
+          <g fill="#D3C193"><path d="M260 300L0 40V0h60z"/><path d="M260 300L200 0h120z"/><path d="M260 300L460 0h60v40z"/></g>
+          <rect y="250" width="520" height="50" fill="#3F4A1F"/>
+          <use href="#sentry" x="14"  y="96" width="72" height="154" fill="#1F1D17"/>
+          <use href="#sentry" x="112" y="84" width="78" height="166" fill="#1F1D17"/>
+          <use href="#sentry" x="214" y="70" width="86" height="180" fill="#1F1D17"/>
+          <use href="#sentry" x="324" y="56" width="92" height="194" fill="#1F1D17"/>
+          <use href="#sentry" x="432" y="42" width="98" height="208" fill="#1F1D17"/>
+          <g font-family="Black Ops One, Impact, sans-serif" font-size="13" fill="#ECE2C6" text-anchor="middle">
+            <text x="46" y="280">KV</text><text x="148" y="280">PAGER</text><text x="254" y="280">B+TREE</text><text x="366" y="280">TX</text><text x="478" y="280">SQL</text>
+          </g>
+        </svg>
+      </div>
+      <div class="ranks">
+        <div class="rank"><span class="chev"><i></i><i></i><i></i><i></i><i></i></span><div><b>Shell &amp; clients</b> <code>cmd/ · capi/ · clients/</code><small>SQL REPL, C ABI, Rust and C++ wrappers</small></div></div>
+        <div class="rank"><span class="chev"><i></i><i></i><i></i><i></i></span><div><b>SQL</b> <code>engine/sql</code><small>Lexer, parser, catalog, executor</small></div></div>
+        <div class="rank"><span class="chev"><i></i><i></i><i></i></span><div><b>Transactions</b> <code>engine/db</code><small>Durable KV facade, BEGIN / COMMIT / ROLLBACK</small></div></div>
+        <div class="rank"><span class="chev"><i></i><i></i></span><div><b>B+tree</b> <code>engine/btree</code><small>Copy-on-write nodes, search, insert, delete</small></div></div>
+        <div class="rank"><span class="chev"><i></i></span><div><b>Pager</b> <code>engine/pager</code><small>Fixed-size pages, meta pages, fsync</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="orders">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow type">Section 3</span><h2 class="stencil">Your orders</h2></div>
+      <p>Requires Go 1.24+. Rust and a C++20 toolchain are only needed for the clients.</p>
+    </div>
+    <div class="orders">
+      <div class="order"><div class="bar type"><span>Order 1 · Report for duty</span><button class="copy" data-copy="o1">Copy</button></div>
+<pre id="o1"><span class="c"># clone, test and start the SQL shell</span>
+git clone https://github.com/Youssef-joe/SoldierDB
+cd SoldierDB
+make test
+make run</pre></div>
+      <div class="order"><div class="bar type"><span>Order 2 · Hold the line</span><button class="copy" data-copy="o2">Copy</button></div>
+<pre id="o2"><span class="k">CREATE TABLE</span> users (
+  id <span class="k">INTEGER PRIMARY KEY</span>,
+  name <span class="k">TEXT NOT NULL</span>, age <span class="k">INTEGER</span>);
+<span class="k">INSERT INTO</span> users <span class="k">VALUES</span> (1, <span class="s">'Ada'</span>, 36), (2, <span class="s">'Grace'</span>, 45);
+<span class="k">SELECT</span> name, age <span class="k">FROM</span> users <span class="k">WHERE</span> age &gt; 40;</pre></div>
+      <div class="order"><div class="bar type"><span>Order 3 · Find the nearest</span><button class="copy" data-copy="o3">Copy</button></div>
+<pre id="o3"><span class="k">CREATE TABLE</span> docs (id <span class="k">INTEGER PRIMARY KEY</span>, embedding <span class="k">VECTOR</span>(3));
+<span class="k">SELECT</span> id <span class="k">FROM</span> docs
+<span class="k">ORDER BY</span> cosine_distance(embedding, <span class="k">VECTOR</span>(1, 0, 0))
+<span class="k">LIMIT</span> 10;</pre></div>
+      <div class="order"><div class="bar type"><span>Order 4 · Full inspection</span><button class="copy" data-copy="o4">Copy</button></div>
+<pre id="o4"><span class="c"># fmt check, Go tests, then the C, Rust and C++ clients</span>
+make check
+
+<span class="c"># or build just the shared library + header</span>
+make shared</pre></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="campaign">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><span class="eyebrow type">Section 4</span><h2 class="stencil">The campaign</h2></div>
+      <p>Ground taken and the objectives ahead. The full plan lives in <a href="https://github.com/Youssef-joe/SoldierDB/blob/main/ROADMAP.md">ROADMAP.md</a>.</p>
+    </div>
+    <div class="campaign">
+      <div class="phase secured"><span class="tag type">Secured</span><span class="n type">Milestones M0–M9</span><h4>Engine, SQL and clients</h4><ul><li>Pager, B+tree, free list</li><li>Transactions, SQL, shell</li><li>C ABI, Rust, C++, vectors</li></ul></div>
+      <div class="phase next"><span class="tag type">Next objective</span><span class="n type">Phase 1</span><h4>Correctness hardening</h4><ul><li>Byte-based node splits</li><li>Savepoints, checked integers</li><li>Fuzzing and crash injection</li></ul></div>
+      <div class="phase"><span class="n type">Phase 2</span><h4>Durability &amp; storage</h4><ul><li>Per-page checksums</li><li>Overflow pages, VACUUM</li><li>Optional WAL</li></ul></div>
+      <div class="phase"><span class="n type">Phase 3</span><h4>Indexes &amp; planner</h4><ul><li>CREATE INDEX</li><li>Pushdown, EXPLAIN</li><li>Joins and subqueries</li></ul></div>
+      <div class="phase"><span class="n type">Phase 4</span><h4>Concurrency &amp; MVCC</h4><ul><li>Snapshot readers</li><li>Multi-process locking</li><li>Concurrent writers</li></ul></div>
+      <div class="phase"><span class="n type">Phase 5</span><h4>Vector search</h4><ul><li>HNSW / IVF index</li><li>Filtered search</li><li>Recall benchmarks</li></ul></div>
+      <div class="phase"><span class="n type">Phase 6</span><h4>Networking</h4><ul><li><code class="mono">soldierdb serve</code></li><li>Wire protocol, TLS</li><li>Prepared statements</li></ul></div>
+      <div class="phase"><span class="n type">Phase 7</span><h4>Tooling &amp; release</h4><ul><li>CI on Linux and macOS</li><li>Benchmarks</li><li>Tagged binary releases</li></ul></div>
+    </div>
+
+    <div class="intel">
+      <h3 class="stencil"><span>Field intelligence: open issues</span><a class="type" style="font-family:'Special Elite';font-size:14px;text-transform:none" href="https://github.com/Youssef-joe/SoldierDB/issues">All issues →</a></h3>
+      <ol>
+        <li><span class="num">#1</span><a href="https://github.com/Youssef-joe/SoldierDB/issues/1">Lost writes: two handles on the same file silently overwrite each other's commits</a></li>
+        <li><span class="num">#2</span><a href="https://github.com/Youssef-joe/SoldierDB/issues/2">B+tree split overflows a page with mixed-size entries</a></li>
+        <li><span class="num">#3</span><a href="https://github.com/Youssef-joe/SoldierDB/issues/3">Failed statement inside BEGIN…COMMIT keeps its partial writes</a></li>
+        <li><span class="num">#4</span><a href="https://github.com/Youssef-joe/SoldierDB/issues/4">INTEGER overflow wraps silently (arithmetic, SUM, ABS, auto-rowid)</a></li>
+        <li><span class="num">#5</span><a href="https://github.com/Youssef-joe/SoldierDB/issues/5">Torn trailing page after a crash makes the database unopenable</a></li>
+        <li><span class="num">#6</span><a href="https://github.com/Youssef-joe/SoldierDB/issues/6">SELECT silently truncates results when a row fails to decode</a></li>
+        <li><span class="num">#7</span><a href="https://github.com/Youssef-joe/SoldierDB/issues/7">sql.Engine is not goroutine-safe</a></li>
+        <li><span class="num">#8</span><a href="https://github.com/Youssef-joe/SoldierDB/issues/8">Finish the YousDB → SoldierDB rename</a></li>
+      </ol>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sign"><img src="logo.svg" alt="SoldierDB badge"><div><div class="stencil" style="font-size:22px">SoldierDB</div><small class="type">Built page by page by <a href="https://github.com/Youssef-joe">Youssef Ali</a>.</small></div></div>
+    <small class="type">Illustrations and badge are original artwork for this project.</small>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('theme');
+  try{var t=localStorage.getItem('sdb-theme'); if(t) root.setAttribute('data-theme',t);}catch(e){}
+  btn.addEventListener('click',function(){
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme')==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark'; root.setAttribute('data-theme',next);
+    try{localStorage.setItem('sdb-theme',next);}catch(e){}
+  });
+  document.querySelectorAll('.copy').forEach(function(b){
+    b.addEventListener('click',function(){
+      var txt=document.getElementById(b.dataset.copy).innerText;
+      (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)}).catch(function(){});
+    });
+  });
+})();
+</script>
+</body>
+</html>

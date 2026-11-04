@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="t">
+  <title id="t">SoldierDB</title>
+  <!-- Badge -->
+  <circle cx="64" cy="64" r="62" fill="#B5893A"/>
+  <circle cx="64" cy="64" r="56" fill="#3F4A1F"/>
+  <circle cx="64" cy="64" r="51" fill="none" stroke="#B5893A" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <!-- Database cylinder: the soldier's body -->
+  <path d="M38 66v28c0 6.6 11.6 12 26 12s26-5.4 26-12V66" fill="#EDE4CC"/>
+  <path d="M38 80c0 6.6 11.6 12 26 12s26-5.4 26-12" fill="none" stroke="#3F4A1F" stroke-width="3"/>
+  <path d="M38 94c0 6.6 11.6 12 26 12s26-5.4 26-12" fill="none" stroke="#3F4A1F" stroke-width="0"/>
+  <ellipse cx="64" cy="66" rx="26" ry="8" fill="#D9CDAE"/>
+  <!-- Helmet -->
+  <path d="M36 60c0-19 12.5-32 28-32s28 13 28 32z" fill="#1F1D17"/>
+  <path d="M30 59c10 5 58 5 68 0l1 5c-12 6-58 6-70 0z" fill="#1F1D17"/>
+  <path d="M46 40c4-5 9-7 14-7.5" fill="none" stroke="#EDE4CC" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>
+  <!-- Chin strap -->
+  <path d="M40 64c4 10 12 15 24 15s20-5 24-15" fill="none" stroke="#B5893A" stroke-width="3"/>
+  <!-- Rank star -->
+  <path d="M64 41l2.4 5 5.4.6-4 3.7 1.1 5.3-4.9-2.7-4.9 2.7 1.1-5.3-4-3.7 5.4-.6z" fill="#B5893A"/>
+</svg>

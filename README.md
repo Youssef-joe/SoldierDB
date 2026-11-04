@@ -1,4 +1,11 @@
-# SoldierDB
+<p align="center">
+  <img src="site/logo.svg" width="120" alt="SoldierDB badge" />
+</p>
+
+<h1 align="center">SoldierDB</h1>
+
+<p align="center"><b>Holds the line on your data.</b><br/>
+<a href="https://youssef-joe.github.io/SoldierDB/">Website</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="https://github.com/Youssef-joe/SoldierDB/issues">Issues</a></p>
 
 A relational database built from scratch: a crash-safe page store, a
 copy-on-write B+tree, transactions, and a SQL layer — written in Go and exposed
