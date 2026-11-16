@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"os"
+
+	"github.com/Youssef-joe/SoldierDB/engine/fsutil"
 )
 
 var ErrNotFound = errors.New("key not found")
@@ -33,7 +35,12 @@ func SaveData1(path string, data []byte) error {
 		return err
 	}
 
-	return fp.Sync() //fsync
+	if err := fp.Sync(); err != nil {
+		return err
+	}
+	// The file data is on disk; sync the directory so the entry that names a
+	// newly created file is durable as well.
+	return fsutil.SyncDir(path)
 }
 
 func SaveData2(path string, data []byte) error {
@@ -44,18 +51,32 @@ func SaveData2(path string, data []byte) error {
 		return err
 	}
 
-	defer func() {
-		fp.Close()
-		if err != nil {
-			os.Remove(tmp)
-		}
-	}()
-
 	_, err = fp.Write(data)
 
 	if err != nil {
+		fp.Close()
+		os.Remove(tmp)
 		return err
 	}
 
-	return os.Rename(tmp, path)
+	// Flush and close the temporary file before the rename: the data has to be
+	// on disk under the new name, and Windows refuses to rename a file that is
+	// still open.
+	if err = fp.Sync(); err != nil {
+		fp.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err = fp.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+
+	if err = os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	// The rename is atomic, but the new name lives in the directory cache until
+	// the directory itself is synced, so durability needs one more fsync.
+	return fsutil.SyncDir(path)
 }

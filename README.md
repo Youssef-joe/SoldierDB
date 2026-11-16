@@ -93,6 +93,10 @@ LIMIT 10;
 - Pages are 4096 bytes; pages 0 and 1 are alternating checksummed meta pages.
 - Commits write the inactive meta page last and `fsync` it, giving atomic
   visibility of a new tree root.
+- A database file that is initialized on open syncs its parent directory after
+  the first meta pages are written, and `kv.SaveData2` does the same after its
+  temp-file rename, so the directory entry is durable too and the file cannot
+  come back nameless after a power cut.
 - The tree never overwrites a page reachable from a committed root
   (copy-on-write), and freed pages are recycled through a persistent free list.
 - Transactions buffer writes and publish them in a single atomic commit.

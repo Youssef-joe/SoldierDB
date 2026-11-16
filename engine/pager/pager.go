@@ -3,7 +3,8 @@
 // The file is an array of fixed-size pages. Pages 0 and 1 are alternating
 // meta pages; the rest hold B+tree nodes and free-list pages. A commit writes
 // the inactive meta page last and fsyncs it, so after a crash exactly one meta
-// page describes a complete tree.
+// page describes a complete tree. A file that is initialized on open also
+// syncs its parent directory, so the directory entry survives a power cut.
 package pager
 
 import (
@@ -14,6 +15,8 @@ import (
 	"io"
 	"os"
 	"sync"
+
+	"github.com/Youssef-joe/SoldierDB/engine/fsutil"
 )
 
 const (
@@ -127,6 +130,17 @@ func OpenWithOptions(path string, opts Options) (*Pager, error) {
 		if err := p.initFile(); err != nil {
 			f.Close()
 			return nil, err
+		}
+		// initFile synced the data, but the name for it is still only in the
+		// directory cache until the directory is synced too. An existing
+		// zero-length file lands here as well: a crash after the create but
+		// before initFile finished leaves exactly that, and its directory
+		// entry still needs the sync.
+		if !opts.NoSync {
+			if err := fsutil.SyncDir(path); err != nil {
+				f.Close()
+				return nil, err
+			}
 		}
 		return p, nil
 	}
