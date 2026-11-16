@@ -1,16 +1,16 @@
-// Package main builds the YousDB C shared library.
+// Package main builds the SoldierDB C shared library.
 //
 // The ABI uses integer handles instead of Go pointers so that C callers never
 // hold memory owned by the Go runtime. Every string returned by the API is
-// allocated with malloc and must be released with yousdb_free_string.
+// allocated with malloc and must be released with soldierdb_free_string.
 package main
 
 /*
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef uint64_t yousdb_handle;
-typedef uint64_t yousdb_result;
+typedef uint64_t soldierdb_handle;
+typedef uint64_t soldierdb_result;
 */
 import "C"
 
@@ -18,7 +18,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/Youssef-joe/YousDB/engine/sql"
+	"github.com/Youssef-joe/SoldierDB/engine/sql"
 )
 
 func main() {}
@@ -83,13 +83,13 @@ func cString(s string) *C.char {
 	return C.CString(s)
 }
 
-// yousdb_open opens or creates a database file. It returns 0 on failure and
+// soldierdb_open opens or creates a database file. It returns 0 on failure and
 // stores a malloc'd error message in err if err is not NULL.
 //
-//export yousdb_open
-func yousdb_open(path *C.char, errOut **C.char) C.uint64_t {
+//export soldierdb_open
+func soldierdb_open(path *C.char, errOut **C.char) C.uint64_t {
 	if path == nil {
-		setError(errOut, "yousdb_open: path is NULL")
+		setError(errOut, "soldierdb_open: path is NULL")
 		return 0
 	}
 	engine, err := sql.Open(C.GoString(path))
@@ -100,10 +100,10 @@ func yousdb_open(path *C.char, errOut **C.char) C.uint64_t {
 	return registerEngine(engine)
 }
 
-// yousdb_close closes a database handle and releases its resources.
+// soldierdb_close closes a database handle and releases its resources.
 //
-//export yousdb_close
-func yousdb_close(h C.uint64_t) {
+//export soldierdb_close
+func soldierdb_close(h C.uint64_t) {
 	if entry := unregisterEngine(h); entry != nil {
 		entry.mu.Lock()
 		_ = entry.engine.Close()
@@ -111,24 +111,24 @@ func yousdb_close(h C.uint64_t) {
 	}
 }
 
-// yousdb_exec executes one or more statements. On success it stores a result
+// soldierdb_exec executes one or more statements. On success it stores a result
 // handle in out and returns 1. On failure it returns 0 and stores a malloc'd
 // error message in err. The result handle must be freed with
-// yousdb_result_free.
+// soldierdb_result_free.
 //
-//export yousdb_exec
-func yousdb_exec(h C.uint64_t, query *C.char, out *C.uint64_t, errOut **C.char) C.int {
+//export soldierdb_exec
+func soldierdb_exec(h C.uint64_t, query *C.char, out *C.uint64_t, errOut **C.char) C.int {
 	if query == nil {
-		setError(errOut, "yousdb_exec: query is NULL")
+		setError(errOut, "soldierdb_exec: query is NULL")
 		return 0
 	}
 	if out == nil {
-		setError(errOut, "yousdb_exec: result out-parameter is NULL")
+		setError(errOut, "soldierdb_exec: result out-parameter is NULL")
 		return 0
 	}
 	engine := lookupEngine(h)
 	if engine == nil {
-		setError(errOut, "yousdb_exec: invalid database handle")
+		setError(errOut, "soldierdb_exec: invalid database handle")
 		return 0
 	}
 	engine.mu.Lock()
@@ -142,19 +142,19 @@ func yousdb_exec(h C.uint64_t, query *C.char, out *C.uint64_t, errOut **C.char) 
 	return 1
 }
 
-// yousdb_result_free releases a result handle.
+// soldierdb_result_free releases a result handle.
 //
-//export yousdb_result_free
-func yousdb_result_free(h C.uint64_t) {
+//export soldierdb_result_free
+func soldierdb_result_free(h C.uint64_t) {
 	mu.Lock()
 	defer mu.Unlock()
 	delete(results, uint64(h))
 }
 
-// yousdb_result_column_count returns the number of columns, or 0.
+// soldierdb_result_column_count returns the number of columns, or 0.
 //
-//export yousdb_result_column_count
-func yousdb_result_column_count(h C.uint64_t) C.int {
+//export soldierdb_result_column_count
+func soldierdb_result_column_count(h C.uint64_t) C.int {
 	res := lookupResult(h)
 	if res == nil {
 		return 0
@@ -162,10 +162,10 @@ func yousdb_result_column_count(h C.uint64_t) C.int {
 	return C.int(len(res.Columns))
 }
 
-// yousdb_result_column_name returns a malloc'd column name.
+// soldierdb_result_column_name returns a malloc'd column name.
 //
-//export yousdb_result_column_name
-func yousdb_result_column_name(h C.uint64_t, index C.int) *C.char {
+//export soldierdb_result_column_name
+func soldierdb_result_column_name(h C.uint64_t, index C.int) *C.char {
 	res := lookupResult(h)
 	if res == nil || index < 0 || int(index) >= len(res.Columns) {
 		return nil
@@ -173,10 +173,10 @@ func yousdb_result_column_name(h C.uint64_t, index C.int) *C.char {
 	return cString(res.Columns[index])
 }
 
-// yousdb_result_row_count returns the number of rows.
+// soldierdb_result_row_count returns the number of rows.
 //
-//export yousdb_result_row_count
-func yousdb_result_row_count(h C.uint64_t) C.int {
+//export soldierdb_result_row_count
+func soldierdb_result_row_count(h C.uint64_t) C.int {
 	res := lookupResult(h)
 	if res == nil {
 		return 0
@@ -184,10 +184,10 @@ func yousdb_result_row_count(h C.uint64_t) C.int {
 	return C.int(len(res.Rows))
 }
 
-// yousdb_result_rows_affected returns the number of modified rows.
+// soldierdb_result_rows_affected returns the number of modified rows.
 //
-//export yousdb_result_rows_affected
-func yousdb_result_rows_affected(h C.uint64_t) C.int {
+//export soldierdb_result_rows_affected
+func soldierdb_result_rows_affected(h C.uint64_t) C.int {
 	res := lookupResult(h)
 	if res == nil {
 		return 0
@@ -195,10 +195,10 @@ func yousdb_result_rows_affected(h C.uint64_t) C.int {
 	return C.int(res.RowsAffected)
 }
 
-// yousdb_result_message returns a malloc'd status message.
+// soldierdb_result_message returns a malloc'd status message.
 //
-//export yousdb_result_message
-func yousdb_result_message(h C.uint64_t) *C.char {
+//export soldierdb_result_message
+func soldierdb_result_message(h C.uint64_t) *C.char {
 	res := lookupResult(h)
 	if res == nil {
 		return nil
@@ -206,12 +206,12 @@ func yousdb_result_message(h C.uint64_t) *C.char {
 	return cString(res.Message)
 }
 
-// yousdb_value_type returns 0 for NULL, 1 INTEGER, 2 REAL, 3 TEXT, 4 BOOLEAN,
+// soldierdb_value_type returns 0 for NULL, 1 INTEGER, 2 REAL, 3 TEXT, 4 BOOLEAN,
 // 5 VECTOR,
 // or -1 for an invalid handle or position.
 //
-//export yousdb_value_type
-func yousdb_value_type(h C.uint64_t, row C.int, col C.int) C.int {
+//export soldierdb_value_type
+func soldierdb_value_type(h C.uint64_t, row C.int, col C.int) C.int {
 	v, ok := valueAt(h, row, col)
 	if !ok {
 		return -1
@@ -235,10 +235,10 @@ func yousdb_value_type(h C.uint64_t, row C.int, col C.int) C.int {
 	}
 }
 
-// yousdb_value_string returns a malloc'd display string for a value.
+// soldierdb_value_string returns a malloc'd display string for a value.
 //
-//export yousdb_value_string
-func yousdb_value_string(h C.uint64_t, row C.int, col C.int) *C.char {
+//export soldierdb_value_string
+func soldierdb_value_string(h C.uint64_t, row C.int, col C.int) *C.char {
 	v, ok := valueAt(h, row, col)
 	if !ok {
 		return nil
@@ -246,10 +246,10 @@ func yousdb_value_string(h C.uint64_t, row C.int, col C.int) *C.char {
 	return cString(v.String())
 }
 
-// yousdb_value_int returns an INTEGER value, or 0 for NULL/other types.
+// soldierdb_value_int returns an INTEGER value, or 0 for NULL/other types.
 //
-//export yousdb_value_int
-func yousdb_value_int(h C.uint64_t, row C.int, col C.int) C.int64_t {
+//export soldierdb_value_int
+func soldierdb_value_int(h C.uint64_t, row C.int, col C.int) C.int64_t {
 	v, ok := valueAt(h, row, col)
 	if !ok || v.Null || v.Type != sql.IntegerType {
 		return 0
@@ -257,10 +257,10 @@ func yousdb_value_int(h C.uint64_t, row C.int, col C.int) C.int64_t {
 	return C.int64_t(v.Int)
 }
 
-// yousdb_value_real returns a REAL value, or 0 for NULL/other types.
+// soldierdb_value_real returns a REAL value, or 0 for NULL/other types.
 //
-//export yousdb_value_real
-func yousdb_value_real(h C.uint64_t, row C.int, col C.int) C.double {
+//export soldierdb_value_real
+func soldierdb_value_real(h C.uint64_t, row C.int, col C.int) C.double {
 	v, ok := valueAt(h, row, col)
 	if !ok || v.Null || v.Type != sql.RealType {
 		return 0
@@ -268,10 +268,10 @@ func yousdb_value_real(h C.uint64_t, row C.int, col C.int) C.double {
 	return C.double(v.Real)
 }
 
-// yousdb_value_bool returns a BOOLEAN value, or 0 for NULL/other types.
+// soldierdb_value_bool returns a BOOLEAN value, or 0 for NULL/other types.
 //
-//export yousdb_value_bool
-func yousdb_value_bool(h C.uint64_t, row C.int, col C.int) C.int {
+//export soldierdb_value_bool
+func soldierdb_value_bool(h C.uint64_t, row C.int, col C.int) C.int {
 	v, ok := valueAt(h, row, col)
 	if !ok || v.Null || v.Type != sql.BooleanType {
 		return 0
@@ -282,11 +282,11 @@ func yousdb_value_bool(h C.uint64_t, row C.int, col C.int) C.int {
 	return 0
 }
 
-// yousdb_value_text returns a malloc'd TEXT value, or an empty string for
+// soldierdb_value_text returns a malloc'd TEXT value, or an empty string for
 // NULL/other types.
 //
-//export yousdb_value_text
-func yousdb_value_text(h C.uint64_t, row C.int, col C.int) *C.char {
+//export soldierdb_value_text
+func soldierdb_value_text(h C.uint64_t, row C.int, col C.int) *C.char {
 	v, ok := valueAt(h, row, col)
 	if !ok || v.Null || v.Type != sql.TextType {
 		return cString("")
@@ -294,11 +294,11 @@ func yousdb_value_text(h C.uint64_t, row C.int, col C.int) *C.char {
 	return cString(v.Str)
 }
 
-// yousdb_value_vector_dimension returns the number of components, or -1 for
+// soldierdb_value_vector_dimension returns the number of components, or -1 for
 // an invalid handle, position, or non-vector value.
 //
-//export yousdb_value_vector_dimension
-func yousdb_value_vector_dimension(h C.uint64_t, row C.int, col C.int) C.int {
+//export soldierdb_value_vector_dimension
+func soldierdb_value_vector_dimension(h C.uint64_t, row C.int, col C.int) C.int {
 	v, ok := valueAt(h, row, col)
 	if !ok || v.Null || v.Type != sql.VectorType {
 		return -1
@@ -306,11 +306,11 @@ func yousdb_value_vector_dimension(h C.uint64_t, row C.int, col C.int) C.int {
 	return C.int(len(v.Vector))
 }
 
-// yousdb_value_vector_element returns a vector component, or 0 for an invalid
+// soldierdb_value_vector_element returns a vector component, or 0 for an invalid
 // handle, position, or component.
 //
-//export yousdb_value_vector_element
-func yousdb_value_vector_element(h C.uint64_t, row C.int, col C.int, index C.int) C.float {
+//export soldierdb_value_vector_element
+func soldierdb_value_vector_element(h C.uint64_t, row C.int, col C.int, index C.int) C.float {
 	v, ok := valueAt(h, row, col)
 	if !ok || v.Null || v.Type != sql.VectorType || index < 0 || int(index) >= len(v.Vector) {
 		return 0
@@ -318,10 +318,10 @@ func yousdb_value_vector_element(h C.uint64_t, row C.int, col C.int, index C.int
 	return C.float(v.Vector[index])
 }
 
-// yousdb_free_string releases a string returned by this API.
+// soldierdb_free_string releases a string returned by this API.
 //
-//export yousdb_free_string
-func yousdb_free_string(s *C.char) {
+//export soldierdb_free_string
+func soldierdb_free_string(s *C.char) {
 	if s != nil {
 		C.free(unsafe.Pointer(s))
 	}

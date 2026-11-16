@@ -1,4 +1,4 @@
-// Command yousdb is the YousDB SQL shell.
+// Command soldierdb is the SoldierDB SQL shell.
 package main
 
 import (
@@ -12,7 +12,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/Youssef-joe/YousDB/engine/sql"
+	"github.com/Youssef-joe/SoldierDB/engine/sql"
 )
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 }
 
 func run() error {
-	dbPath := flag.String("db", "yousdb.db", "path to the database file")
+	dbPath := flag.String("db", "soldierdb.db", "path to the database file")
 	command := flag.String("c", "", "execute SQL and exit")
 	flag.Parse()
 
@@ -70,7 +70,7 @@ func repl(engine *sql.Engine) error {
 	for {
 		if interactive {
 			if buffer.Len() == 0 {
-				fmt.Print("yousdb> ")
+				fmt.Print("soldierdb> ")
 			} else {
 				fmt.Print("   ...> ")
 			}
@@ -121,7 +121,7 @@ func repl(engine *sql.Engine) error {
 func showBanner() {
 	frames := []string{"·", "··", "···"}
 	for _, frame := range frames {
-		fmt.Printf("\r\033[36mStarting YousDB %s\033[0m", frame)
+		fmt.Printf("\r\033[36mStarting SoldierDB %s\033[0m", frame)
 		time.Sleep(70 * time.Millisecond)
 	}
 	fmt.Print("\r\033[2K")
@@ -130,7 +130,7 @@ func showBanner() {
 	fmt.Println("\033[1;36m  \\ V / _ \\| | | / __|/ _ \\  | | | |  _ \\ ")
 	fmt.Println("\033[1;36m   | | (_) | |_| \\__ \\  __/  | |_| | |_) |")
 	fmt.Println("\033[1;36m   |_|\\___/ \\__,_|___/\\___|  |____/|____/ \\033[0m")
-	fmt.Println("YousDB shell · type \\033[33m\\help\\033[0m for shortcuts, \\033[33m\\q\\033[0m to quit.")
+	fmt.Println("SoldierDB shell · type \\033[33m\\help\\033[0m for shortcuts, \\033[33m\\q\\033[0m to quit.")
 }
 
 func execute(engine *sql.Engine, query string) {
@@ -170,7 +170,7 @@ func printResult(res *sql.Result) {
 }
 
 func printHelp() {
-	fmt.Print(`YousDB shell commands:
+	fmt.Print(`SoldierDB shell commands:
   \q, \quit        quit the shell
   \h, \help        show this help
   \dt, \tables      list tables

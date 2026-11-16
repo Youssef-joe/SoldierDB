@@ -9,8 +9,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/Youssef-joe/YousDB/engine/kv"
-	"github.com/Youssef-joe/YousDB/engine/pager"
+	"github.com/Youssef-joe/SoldierDB/engine/kv"
+	"github.com/Youssef-joe/SoldierDB/engine/pager"
 )
 
 type memPages struct {

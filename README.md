@@ -29,7 +29,7 @@ The storage engine and SQL layer are under active construction. See
 ## Requirements
 
 - Go 1.24 or newer
-- Rust 1.80+ and Cargo (for the Rust client)
+- Rust 1.70+ and Cargo (for the Rust client)
 - A C++20 compiler and CMake 3.20+ (for the C++ client)
 - `make` is optional, but convenient
 
@@ -51,7 +51,7 @@ SELECT name, age FROM users WHERE age > 40 ORDER BY name;
 ## Project Layout
 
 ```text
-cmd/yousdb/        SQL shell / CLI (rename tracked in #8)
+cmd/soldierdb/     SQL shell / CLI
 engine/pager/      fixed-size page file, meta pages, crash recovery
 engine/btree/      copy-on-write B+tree
 engine/db/         durable KV facade and transactions
@@ -69,7 +69,7 @@ docs/              design notes and roadmap
 make fmt           # gofmt the Go sources
 make test          # Go tests
 make build         # build the SQL CLI
-make shared        # build libSoldierDB shared library and header
+make shared        # build libsoldierdb shared library and header
 make rust          # build the Rust client
 make cpp           # build the C++ client
 make check         # fmt check + Go tests + C, Rust and C++ client tests

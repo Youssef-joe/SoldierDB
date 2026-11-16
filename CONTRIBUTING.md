@@ -36,7 +36,7 @@ protocol), open a short design discussion in the issue first. Issues labeled
 
 ## Set up
 
-Requirements: Go 1.24+. For the clients you also need Rust 1.80+ and a C++20
+Requirements: Go 1.24+. For the clients you also need Rust 1.70+ and a C++20
 compiler with CMake 3.20+.
 
 ```sh
@@ -46,9 +46,6 @@ make test     # Go tests
 make run      # start the SQL shell
 make check    # everything: gofmt, Go tests, C ABI smoke test, Rust and C++ clients
 ```
-
-> The Go module path and binary are still named `YousDB` / `yousdb` (the
-> project's old name). Renaming them is tracked in #8.
 
 ## Map of the code
 

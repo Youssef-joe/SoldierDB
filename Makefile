@@ -12,12 +12,12 @@ SHARED_EXT := dylib
 else
 SHARED_EXT := so
 endif
-SHARED_LIB := $(BUILD)/libyousdb.$(SHARED_EXT)
+SHARED_LIB := $(BUILD)/libsoldierdb.$(SHARED_EXT)
 
 ifeq ($(UNAME_S),Darwin)
 # cgo leaves a bare install name on macOS, which rpath cannot resolve. Give the
 # library an @rpath install name so clients can embed $(BUILD) as their rpath.
-FIX_INSTALL_NAME := install_name_tool -id @rpath/libyousdb.dylib $(SHARED_LIB)
+FIX_INSTALL_NAME := install_name_tool -id @rpath/libsoldierdb.dylib $(SHARED_LIB)
 else
 FIX_INSTALL_NAME := true
 endif
@@ -38,10 +38,10 @@ fmt-check:
 
 build:
 	mkdir -p $(BUILD)
-	$(GO) build -o $(BUILD)/yousdb ./cmd/yousdb
+	$(GO) build -o $(BUILD)/soldierdb ./cmd/soldierdb
 
 run:
-	$(GO) run ./cmd/yousdb
+	$(GO) run ./cmd/soldierdb
 
 shared:
 	mkdir -p $(BUILD)

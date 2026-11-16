@@ -7,10 +7,10 @@
 #include <vector>
 
 extern "C" {
-#include "libyousdb.h"
+#include "libsoldierdb.h"
 }
 
-namespace yousdb {
+namespace soldierdb {
 
 enum class ValueType { Null = 0, Integer = 1, Real = 2, Text = 3, Boolean = 4, Vector = 5 };
 
@@ -90,4 +90,4 @@ private:
     std::uint64_t handle_ = 0;
 };
 
-} // namespace yousdb
+} // namespace soldierdb

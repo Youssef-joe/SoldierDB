@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Youssef-joe/YousDB/engine/kv"
-	"github.com/Youssef-joe/YousDB/engine/pager"
+	"github.com/Youssef-joe/SoldierDB/engine/kv"
+	"github.com/Youssef-joe/SoldierDB/engine/pager"
 )
 
 func TestDeleteLeaf(t *testing.T) {

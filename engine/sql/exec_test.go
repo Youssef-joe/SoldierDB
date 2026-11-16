@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Youssef-joe/YousDB/engine/db"
+	"github.com/Youssef-joe/SoldierDB/engine/db"
 )
 
 func openEngine(t *testing.T) (*Engine, string) {

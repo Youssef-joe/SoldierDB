@@ -1,4 +1,4 @@
-// Package pager implements the on-disk page layer for YousDB.
+// Package pager implements the on-disk page layer for SoldierDB.
 //
 // The file is an array of fixed-size pages. Pages 0 and 1 are alternating
 // meta pages; the rest hold B+tree nodes and free-list pages. A commit writes
@@ -20,7 +20,9 @@ const (
 	// PageSize is the fixed size of every page in the file.
 	PageSize = 4096
 
-	// MetaMagic identifies a YousDB file.
+	// MetaMagic identifies a SoldierDB file. The bytes spell "YOUS", from the
+	// project's original name (YousDB). It is kept so existing files still
+	// open; changing it would be an on-disk format change.
 	MetaMagic = 0x594F5553 // "YOUS"
 	// MetaVersion is the current on-disk format version.
 	MetaVersion = 1

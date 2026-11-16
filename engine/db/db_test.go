@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Youssef-joe/YousDB/engine/kv"
+	"github.com/Youssef-joe/SoldierDB/engine/kv"
 )
 
 func openTemp(t *testing.T) (*DB, string) {

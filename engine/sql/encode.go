@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/Youssef-joe/YousDB/engine/btree"
+	"github.com/Youssef-joe/SoldierDB/engine/btree"
 )
 
 // Row encoding tags. The tag makes a row self-describing so a table can be

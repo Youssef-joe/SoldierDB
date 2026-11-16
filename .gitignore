@@ -1,6 +1,6 @@
 .gocache/
 /build/
-/yousdb
+/soldierdb
 *.db
 *.db.tmp.*
 *.log

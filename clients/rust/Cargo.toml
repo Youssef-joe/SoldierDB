@@ -1,18 +1,18 @@
 [package]
-name = "yousdb"
+name = "soldierdb"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.70"
-description = "Safe Rust client for the YousDB SQL engine"
+description = "Safe Rust client for the SoldierDB SQL engine"
 license = "MIT"
 publish = false
 
 [lib]
-name = "yousdb"
+name = "soldierdb"
 path = "src/lib.rs"
 
 [[bin]]
-name = "yousdb-rs"
+name = "soldierdb-rs"
 path = "src/main.rs"
 
 [dependencies]

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use yousdb::{Database, Value};
+use soldierdb::{Database, Value};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -22,7 +22,7 @@ impl TempDb {
             .as_nanos();
         let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
-            "yousdb-rust-{}-{label}-{nanos}-{counter}.db",
+            "soldierdb-rust-{}-{label}-{nanos}-{counter}.db",
             std::process::id()
         ));
         let _ = std::fs::remove_file(&path);

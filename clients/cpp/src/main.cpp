@@ -1,4 +1,4 @@
-#include "yousdb.hpp"
+#include "soldierdb.hpp"
 
 #include <cstdlib>
 #include <chrono>
@@ -8,16 +8,16 @@
 
 #if defined(_WIN32)
 #include <io.h>
-#define YOUSDB_ISATTY _isatty(_fileno(stdin))
+#define SOLDIERDB_ISATTY _isatty(_fileno(stdin))
 #else
 #include <unistd.h>
-#define YOUSDB_ISATTY isatty(fileno(stdin))
+#define SOLDIERDB_ISATTY isatty(fileno(stdin))
 #endif
 
 namespace {
 
 void print_help() {
-    std::cout << "YousDB shell commands:\n"
+    std::cout << "SoldierDB shell commands:\n"
               << "  \\q, \\quit        quit the shell\n"
               << "  \\h, \\help        show this help\n"
               << "  \\dt, \\tables      list tables\n"
@@ -29,7 +29,7 @@ void print_help() {
 
 void show_banner() {
     for (const char* frame : {"·", "··", "···"}) {
-        std::cout << "\r\033[36mStarting YousDB " << frame << "\033[0m" << std::flush;
+        std::cout << "\r\033[36mStarting SoldierDB " << frame << "\033[0m" << std::flush;
         std::this_thread::sleep_for(std::chrono::milliseconds(70));
     }
     std::cout << "\r\033[2K"
@@ -38,10 +38,10 @@ void show_banner() {
               << "\033[1;36m  \\ V / _ \\| | | / __|/ _ \\  | | | |  _ \\ \033[0m\n"
               << "\033[1;36m   | | (_) | |_| \\__ \\  __/  | |_| | |_) |\033[0m\n"
               << "\033[1;36m   |_|\\___/ \\__,_|___/\\___|  |____/|____/ \033[0m\n"
-              << "YousDB C++ shell · type \033[33m\\help\033[0m for shortcuts, \033[33m\\q\033[0m to quit.\n";
+              << "SoldierDB C++ shell · type \033[33m\\help\033[0m for shortcuts, \033[33m\\q\033[0m to quit.\n";
 }
 
-void print_result(const yousdb::Result& result) {
+void print_result(const soldierdb::Result& result) {
     if (result.columns().empty()) {
         if (!result.message().empty()) std::cout << result.message() << '\n';
         return;
@@ -84,7 +84,7 @@ bool complete_statement(const std::string& sql) {
 }
 
 // Returns true when handled, and sets quit when the command requests exit.
-bool meta_command(yousdb::Database& db, const std::string& input, bool& quit) {
+bool meta_command(soldierdb::Database& db, const std::string& input, bool& quit) {
     std::istringstream stream(input);
     std::string command;
     stream >> command;
@@ -119,13 +119,13 @@ bool meta_command(yousdb::Database& db, const std::string& input, bool& quit) {
     return false;
 }
 
-int repl(yousdb::Database& db) {
-    const bool interactive = YOUSDB_ISATTY != 0;
+int repl(soldierdb::Database& db) {
+    const bool interactive = SOLDIERDB_ISATTY != 0;
     if (interactive) show_banner();
     std::string buffer;
     std::string line;
     while (true) {
-        if (interactive) std::cout << (buffer.empty() ? "yousdb> " : "   ...> ") << std::flush;
+        if (interactive) std::cout << (buffer.empty() ? "soldierdb> " : "   ...> ") << std::flush;
         if (!std::getline(std::cin, line)) break;
         if (buffer.empty()) {
             bool quit = false;
@@ -138,14 +138,14 @@ int repl(yousdb::Database& db) {
         if (!complete_statement(buffer)) continue;
         try {
             print_result(db.exec(buffer));
-        } catch (const yousdb::Error& error) {
+        } catch (const soldierdb::Error& error) {
             std::cerr << "error: " << error.what() << '\n';
         }
         buffer.clear();
     }
     if (!buffer.empty()) {
         try { print_result(db.exec(buffer)); }
-        catch (const yousdb::Error& error) { std::cerr << "error: " << error.what() << '\n'; }
+        catch (const soldierdb::Error& error) { std::cerr << "error: " << error.what() << '\n'; }
     }
     return 0;
 }
@@ -153,12 +153,12 @@ int repl(yousdb::Database& db) {
 } // namespace
 
 int main(int argc, char** argv) {
-    std::string path = "yousdb.db";
+    std::string path = "soldierdb.db";
     std::string sql;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-h" || arg == "--help") {
-            std::cout << "Usage: yousdb-cpp [-db PATH] [-c SQL] [SQL]\n"
+            std::cout << "Usage: soldierdb-cpp [-db PATH] [-c SQL] [SQL]\n"
                       << "With no SQL argument, starts the interactive shell.\n";
             return 0;
         }
@@ -176,11 +176,11 @@ int main(int argc, char** argv) {
     }
 
     try {
-        auto db = yousdb::Database::open(path);
+        auto db = soldierdb::Database::open(path);
         if (sql.empty()) return repl(db);
         print_result(db.exec(sql));
         return 0;
-    } catch (const yousdb::Error& error) {
+    } catch (const soldierdb::Error& error) {
         std::cerr << "error: " << error.what() << '\n';
         return 1;
     }

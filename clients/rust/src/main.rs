@@ -1,24 +1,24 @@
-//! Command-line SQL shell for the YousDB Rust client.
+//! Command-line SQL shell for the SoldierDB Rust client.
 //!
 //! Usage:
-//!   yousdb-rs -db app.db -c "SELECT 1;"
-//!   yousdb-rs -db app.db "SELECT 1;"
-//!   yousdb-rs -db app.db            # interactive REPL
+//!   soldierdb-rs -db app.db -c "SELECT 1;"
+//!   soldierdb-rs -db app.db "SELECT 1;"
+//!   soldierdb-rs -db app.db            # interactive REPL
 
 use std::env;
 use std::io::{self, BufRead, IsTerminal, Write};
 use std::process::ExitCode;
 
-use yousdb::{Database, QueryResult};
+use soldierdb::{Database, QueryResult};
 
 const USAGE: &str = "\
-YousDB Rust client
+SoldierDB Rust client
 
 Usage:
-  yousdb-rs [options] [SQL]
+  soldierdb-rs [options] [SQL]
 
 Options:
-  -db <path>       database file (default: yousdb.db)
+  -db <path>       database file (default: soldierdb.db)
   -c <sql>         execute SQL and exit
   -h, --help       show this help
 ";
@@ -55,7 +55,7 @@ fn run() -> Result<(), String> {
 
 fn parse_args(args: impl Iterator<Item = String>) -> Result<Options, String> {
     let mut options = Options {
-        db: "yousdb.db".to_owned(),
+        db: "soldierdb.db".to_owned(),
         command: None,
         sql: None,
     };
@@ -102,7 +102,7 @@ fn repl(db: &Database) -> io::Result<()> {
     loop {
         if interactive {
             let prompt = if buffer.is_empty() {
-                "yousdb> "
+                "soldierdb> "
             } else {
                 "   ...> "
             };
@@ -148,7 +148,7 @@ fn repl(db: &Database) -> io::Result<()> {
 
 fn show_banner() {
     for frame in ["·", "··", "···"] {
-        print!("\r\x1b[36mStarting YousDB {frame}\x1b[0m");
+        print!("\r\x1b[36mStarting SoldierDB {frame}\x1b[0m");
         let _ = io::stdout().flush();
         std::thread::sleep(std::time::Duration::from_millis(70));
     }
@@ -159,7 +159,7 @@ fn show_banner() {
     println!("\x1b[1;36m   | | (_) | |_| \\__ \\  __/  | |_| | |_) |\x1b[0m");
     println!("\x1b[1;36m   |_|\\___/ \\__,_|___/\\___|  |____/|____/ \x1b[0m");
     println!(
-        "YousDB Rust shell · type \x1b[33m\\help\x1b[0m for shortcuts, \x1b[33m\\q\x1b[0m to quit."
+        "SoldierDB Rust shell · type \x1b[33m\\help\x1b[0m for shortcuts, \x1b[33m\\q\x1b[0m to quit."
     );
 }
 
@@ -226,7 +226,7 @@ fn print_row<'a>(cells: impl Iterator<Item = &'a str>, widths: &[usize]) {
 
 fn print_help() {
     print!(
-        "YousDB shell commands:\n\
+        "SoldierDB shell commands:\n\
          \x20 \\q, \\quit        quit the shell\n\
          \x20 \\h, \\help        show this help\n\
          \x20 \\dt, \\tables      list tables\n\

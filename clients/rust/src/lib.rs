@@ -1,13 +1,13 @@
-//! Safe Rust bindings for the YousDB SQL engine.
+//! Safe Rust bindings for the SoldierDB SQL engine.
 //!
-//! The crate links against the `yousdb` C ABI shared library. Build it first
+//! The crate links against the `soldierdb` C ABI shared library. Build it first
 //! from the repository root with `make shared`.
 //!
 //! ```
-//! use yousdb::Database;
+//! use soldierdb::Database;
 //!
-//! # fn main() -> yousdb::Result<()> {
-//! # let path = std::env::temp_dir().join("yousdb-doc.db");
+//! # fn main() -> soldierdb::Result<()> {
+//! # let path = std::env::temp_dir().join("soldierdb-doc.db");
 //! # let _ = std::fs::remove_file(&path);
 //! let db = Database::open(path)?;
 //! db.exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")?;
@@ -34,37 +34,37 @@ mod ffi {
     use super::{c_char, c_double, c_int};
 
     extern "C" {
-        pub fn yousdb_open(path: *mut c_char, err_out: *mut *mut c_char) -> u64;
-        pub fn yousdb_close(handle: u64);
+        pub fn soldierdb_open(path: *mut c_char, err_out: *mut *mut c_char) -> u64;
+        pub fn soldierdb_close(handle: u64);
 
-        pub fn yousdb_exec(
+        pub fn soldierdb_exec(
             handle: u64,
             query: *mut c_char,
             out: *mut u64,
             err_out: *mut *mut c_char,
         ) -> c_int;
 
-        pub fn yousdb_result_free(handle: u64);
-        pub fn yousdb_result_column_count(handle: u64) -> c_int;
-        pub fn yousdb_result_column_name(handle: u64, index: c_int) -> *mut c_char;
-        pub fn yousdb_result_row_count(handle: u64) -> c_int;
-        pub fn yousdb_result_rows_affected(handle: u64) -> c_int;
-        pub fn yousdb_result_message(handle: u64) -> *mut c_char;
+        pub fn soldierdb_result_free(handle: u64);
+        pub fn soldierdb_result_column_count(handle: u64) -> c_int;
+        pub fn soldierdb_result_column_name(handle: u64, index: c_int) -> *mut c_char;
+        pub fn soldierdb_result_row_count(handle: u64) -> c_int;
+        pub fn soldierdb_result_rows_affected(handle: u64) -> c_int;
+        pub fn soldierdb_result_message(handle: u64) -> *mut c_char;
 
-        pub fn yousdb_value_type(handle: u64, row: c_int, col: c_int) -> c_int;
-        pub fn yousdb_value_int(handle: u64, row: c_int, col: c_int) -> i64;
-        pub fn yousdb_value_real(handle: u64, row: c_int, col: c_int) -> c_double;
-        pub fn yousdb_value_bool(handle: u64, row: c_int, col: c_int) -> c_int;
-        pub fn yousdb_value_text(handle: u64, row: c_int, col: c_int) -> *mut c_char;
-        pub fn yousdb_value_vector_dimension(handle: u64, row: c_int, col: c_int) -> c_int;
-        pub fn yousdb_value_vector_element(
+        pub fn soldierdb_value_type(handle: u64, row: c_int, col: c_int) -> c_int;
+        pub fn soldierdb_value_int(handle: u64, row: c_int, col: c_int) -> i64;
+        pub fn soldierdb_value_real(handle: u64, row: c_int, col: c_int) -> c_double;
+        pub fn soldierdb_value_bool(handle: u64, row: c_int, col: c_int) -> c_int;
+        pub fn soldierdb_value_text(handle: u64, row: c_int, col: c_int) -> *mut c_char;
+        pub fn soldierdb_value_vector_dimension(handle: u64, row: c_int, col: c_int) -> c_int;
+        pub fn soldierdb_value_vector_element(
             handle: u64,
             row: c_int,
             col: c_int,
             index: c_int,
         ) -> f32;
 
-        pub fn yousdb_free_string(s: *mut c_char);
+        pub fn soldierdb_free_string(s: *mut c_char);
     }
 }
 
@@ -285,7 +285,7 @@ impl QueryResult {
     }
 }
 
-/// A handle to an open YousDB database.
+/// A handle to an open SoldierDB database.
 pub struct Database {
     handle: u64,
 }
@@ -304,7 +304,7 @@ impl Database {
             CString::new(path).map_err(|_| Error::new("database path contains a NUL byte"))?;
 
         let mut err: *mut c_char = ptr::null_mut();
-        let handle = unsafe { ffi::yousdb_open(path.as_ptr() as *mut c_char, &mut err) };
+        let handle = unsafe { ffi::soldierdb_open(path.as_ptr() as *mut c_char, &mut err) };
         if handle == 0 {
             return Err(take_error(err));
         }
@@ -318,7 +318,7 @@ impl Database {
         let mut err: *mut c_char = ptr::null_mut();
 
         let ok = unsafe {
-            ffi::yousdb_exec(
+            ffi::soldierdb_exec(
                 self.handle,
                 sql.as_ptr() as *mut c_char,
                 &mut result,
@@ -337,7 +337,7 @@ impl Database {
 impl Drop for Database {
     fn drop(&mut self) {
         if self.handle != 0 {
-            unsafe { ffi::yousdb_close(self.handle) };
+            unsafe { ffi::soldierdb_close(self.handle) };
             self.handle = 0;
         }
     }
@@ -356,21 +356,21 @@ unsafe fn take_string(ptr: *mut c_char) -> Option<String> {
         return None;
     }
     let value = CStr::from_ptr(ptr).to_string_lossy().into_owned();
-    ffi::yousdb_free_string(ptr);
+    ffi::soldierdb_free_string(ptr);
     Some(value)
 }
 
 unsafe fn read_value(handle: u64, row: c_int, col: c_int) -> Value {
-    match ffi::yousdb_value_type(handle, row, col) {
-        1 => Value::Integer(ffi::yousdb_value_int(handle, row, col)),
-        2 => Value::Real(ffi::yousdb_value_real(handle, row, col)),
-        3 => Value::Text(take_string(ffi::yousdb_value_text(handle, row, col)).unwrap_or_default()),
-        4 => Value::Boolean(ffi::yousdb_value_bool(handle, row, col) != 0),
+    match ffi::soldierdb_value_type(handle, row, col) {
+        1 => Value::Integer(ffi::soldierdb_value_int(handle, row, col)),
+        2 => Value::Real(ffi::soldierdb_value_real(handle, row, col)),
+        3 => Value::Text(take_string(ffi::soldierdb_value_text(handle, row, col)).unwrap_or_default()),
+        4 => Value::Boolean(ffi::soldierdb_value_bool(handle, row, col) != 0),
         5 => {
-            let dimension = ffi::yousdb_value_vector_dimension(handle, row, col).max(0);
+            let dimension = ffi::soldierdb_value_vector_dimension(handle, row, col).max(0);
             let mut vector = Vec::with_capacity(dimension as usize);
             for index in 0..dimension {
-                vector.push(ffi::yousdb_value_vector_element(handle, row, col, index));
+                vector.push(ffi::soldierdb_value_vector_element(handle, row, col, index));
             }
             Value::Vector(vector)
         }
@@ -379,13 +379,13 @@ unsafe fn read_value(handle: u64, row: c_int, col: c_int) -> Value {
 }
 
 unsafe fn collect_result(handle: u64) -> QueryResult {
-    let column_count = ffi::yousdb_result_column_count(handle).max(0);
-    let row_count = ffi::yousdb_result_row_count(handle).max(0);
+    let column_count = ffi::soldierdb_result_column_count(handle).max(0);
+    let row_count = ffi::soldierdb_result_row_count(handle).max(0);
 
     let mut columns = Vec::with_capacity(column_count as usize);
     for index in 0..column_count {
         columns
-            .push(take_string(ffi::yousdb_result_column_name(handle, index)).unwrap_or_default());
+            .push(take_string(ffi::soldierdb_result_column_name(handle, index)).unwrap_or_default());
     }
 
     let mut rows = Vec::with_capacity(row_count as usize);
@@ -397,9 +397,9 @@ unsafe fn collect_result(handle: u64) -> QueryResult {
         rows.push(values);
     }
 
-    let rows_affected = ffi::yousdb_result_rows_affected(handle).max(0) as usize;
-    let message = take_string(ffi::yousdb_result_message(handle));
-    ffi::yousdb_result_free(handle);
+    let rows_affected = ffi::soldierdb_result_rows_affected(handle).max(0) as usize;
+    let message = take_string(ffi::soldierdb_result_message(handle));
+    ffi::soldierdb_result_free(handle);
 
     QueryResult {
         columns,

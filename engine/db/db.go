@@ -6,9 +6,9 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/Youssef-joe/YousDB/engine/btree"
-	"github.com/Youssef-joe/YousDB/engine/kv"
-	"github.com/Youssef-joe/YousDB/engine/pager"
+	"github.com/Youssef-joe/SoldierDB/engine/btree"
+	"github.com/Youssef-joe/SoldierDB/engine/kv"
+	"github.com/Youssef-joe/SoldierDB/engine/pager"
 )
 
 var (

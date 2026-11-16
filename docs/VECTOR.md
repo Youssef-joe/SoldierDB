@@ -1,6 +1,6 @@
 # Vector search
 
-YousDB supports fixed-dimension `VECTOR` columns and brute-force nearest-neighbor
+SoldierDB supports fixed-dimension `VECTOR` columns and brute-force nearest-neighbor
 queries. Components are stored as `float32` values.
 
 ```sql

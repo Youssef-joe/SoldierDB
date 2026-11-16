@@ -1,6 +1,6 @@
-# YousDB Engine Plan
+# SoldierDB Engine Plan
 
-YousDB is a from-scratch relational database. The storage engine and SQL layer
+SoldierDB is a from-scratch relational database. The storage engine and SQL layer
 are written in Go; Rust and C++ consume the engine through a stable C ABI.
 
 The work is split into independent, reviewable milestones. Each milestone is a
@@ -10,7 +10,7 @@ single commit and leaves `make test` green.
 
 ```text
 +-------------------------------------------------------------+
-|  cmd/yousdb          SQL shell / REPL (Go)                  |
+|  cmd/soldierdb          SQL shell / REPL (Go)                  |
 +-------------------------------------------------------------+
 |  engine/sql          lexer, parser, catalog, planner, exec  |
 +-------------------------------------------------------------+
@@ -48,7 +48,7 @@ clients/cpp            RAII C++ wrapper + CLI
 
 - Restructure into `engine/`, `cmd/`, `capi/`, `clients/`.
 - Replace the non-compiling B+tree scaffold.
-- Rename the module to `github.com/Youssef-joe/YousDB`.
+- Rename the module to `github.com/Youssef-joe/SoldierDB`.
 - Add this plan, build targets and ignore rules.
 
 Commit: `chore: restructure repository for engine and polyglot clients`
@@ -109,8 +109,8 @@ Commit: `feat(sql): add catalog, executor and interactive shell`
 
 ### 7. C ABI
 
-- `capi/`: `yousdb_open`, `yousdb_close`, `yousdb_exec`, `yousdb_query`,
-  result/row accessors, error accessors.
+- `capi/`: `soldierdb_open`, `soldierdb_close`, `soldierdb_exec`, result and
+  value accessors; errors come back as malloc'd strings through out-parameters.
 - `-buildmode=c-shared` output and generated header.
 - C smoke test.
 

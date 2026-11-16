@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Youssef-joe/YousDB/engine/db"
+	"github.com/Youssef-joe/SoldierDB/engine/db"
 )
 
 var (

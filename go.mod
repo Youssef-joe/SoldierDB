@@ -1,3 +1,3 @@
-module github.com/Youssef-joe/YousDB
+module github.com/Youssef-joe/SoldierDB
 
 go 1.24

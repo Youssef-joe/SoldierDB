@@ -14,17 +14,17 @@ fn main() {
         .parent()
         .and_then(|p| p.parent())
         .expect("clients/rust should live inside the repository");
-    let build = match std::env::var_os("YOUSDB_BUILD_DIR") {
+    let build = match std::env::var_os("SOLDIERDB_BUILD_DIR") {
         Some(dir) => PathBuf::from(dir),
         None => root.join("build"),
     };
 
     let library = if cfg!(target_os = "macos") {
-        build.join("libyousdb.dylib")
+        build.join("libsoldierdb.dylib")
     } else if cfg!(target_os = "windows") {
-        build.join("yousdb.dll")
+        build.join("soldierdb.dll")
     } else {
-        build.join("libyousdb.so")
+        build.join("libsoldierdb.so")
     };
 
     if !library.exists() {
@@ -35,8 +35,8 @@ fn main() {
     }
 
     println!("cargo:rustc-link-search=native={}", build.display());
-    println!("cargo:rustc-link-lib=dylib=yousdb");
+    println!("cargo:rustc-link-lib=dylib=soldierdb");
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}", build.display());
     println!("cargo:rerun-if-changed={}", library.display());
-    println!("cargo:rerun-if-env-changed=YOUSDB_BUILD_DIR");
+    println!("cargo:rerun-if-env-changed=SOLDIERDB_BUILD_DIR");
 }

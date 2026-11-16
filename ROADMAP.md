@@ -110,7 +110,7 @@ Fix the verified defects before adding features.
 
 ## Phase 7: Tooling and release
 
-- [ ] Finish the YousDB → SoldierDB rename: module path, binary, C ABI,
+- [x] Finish the YousDB → SoldierDB rename: module path, binary, C ABI,
       clients, docs; keep accepting the `"YOUS"` file magic (#8)
 - [ ] CI: `make check` on Linux and macOS, race detector, fuzz smoke run (#32)
 - [ ] Benchmarks (`go test -bench`) for insert, scan and point lookup (#33)

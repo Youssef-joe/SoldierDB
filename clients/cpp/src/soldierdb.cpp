@@ -1,17 +1,17 @@
-#include "yousdb.hpp"
+#include "soldierdb.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <sstream>
 
-namespace yousdb {
+namespace soldierdb {
 namespace {
 
 std::string take_string(char* value) {
     if (value == nullptr) return {};
     std::string result(value);
-    yousdb_free_string(value);
+    soldierdb_free_string(value);
     return result;
 }
 
@@ -19,7 +19,7 @@ struct ResultGuard {
     std::uint64_t handle;
     explicit ResultGuard(std::uint64_t value) : handle(value) {}
     ~ResultGuard() {
-        if (handle != 0) yousdb_result_free(handle);
+        if (handle != 0) soldierdb_result_free(handle);
     }
     ResultGuard(const ResultGuard&) = delete;
     ResultGuard& operator=(const ResultGuard&) = delete;
@@ -36,16 +36,16 @@ bool equal_fold(const std::string& left, const std::string& right) {
 }
 
 Value read_value(std::uint64_t result, int row, int column) {
-    switch (yousdb_value_type(result, row, column)) {
-    case 1: return Value(yousdb_value_int(result, row, column));
-    case 2: return Value(yousdb_value_real(result, row, column));
-    case 3: return Value(take_string(yousdb_value_text(result, row, column)));
-    case 4: return Value(yousdb_value_bool(result, row, column) != 0);
+    switch (soldierdb_value_type(result, row, column)) {
+    case 1: return Value(soldierdb_value_int(result, row, column));
+    case 2: return Value(soldierdb_value_real(result, row, column));
+    case 3: return Value(take_string(soldierdb_value_text(result, row, column)));
+    case 4: return Value(soldierdb_value_bool(result, row, column) != 0);
     case 5: {
-        const auto dimension = yousdb_value_vector_dimension(result, row, column);
+        const auto dimension = soldierdb_value_vector_dimension(result, row, column);
         std::vector<float> vector;
         for (int i = 0; i < dimension; ++i) {
-            vector.push_back(yousdb_value_vector_element(result, row, column, i));
+            vector.push_back(soldierdb_value_vector_element(result, row, column, i));
         }
         return Value(std::move(vector));
     }
@@ -125,18 +125,18 @@ const Value* Result::value(std::size_t row, const std::string& column) const noe
 
 Database Database::open(const std::string& path) {
     char* error = nullptr;
-    auto handle = yousdb_open(const_cast<char*>(path.c_str()), &error);
+    auto handle = soldierdb_open(const_cast<char*>(path.c_str()), &error);
     if (handle == 0) throw_error(error);
     return Database(handle);
 }
 
 Database::~Database() {
-    if (handle_ != 0) yousdb_close(handle_);
+    if (handle_ != 0) soldierdb_close(handle_);
 }
 
 Database& Database::operator=(Database&& other) noexcept {
     if (this != &other) {
-        if (handle_ != 0) yousdb_close(handle_);
+        if (handle_ != 0) soldierdb_close(handle_);
         handle_ = std::exchange(other.handle_, 0);
     }
     return *this;
@@ -146,16 +146,16 @@ Result Database::exec(const std::string& sql) const {
     if (handle_ == 0) throw Error("database is closed");
     char* error = nullptr;
     std::uint64_t native_result = 0;
-    if (!yousdb_exec(handle_, const_cast<char*>(sql.c_str()), &native_result, &error)) {
+    if (!soldierdb_exec(handle_, const_cast<char*>(sql.c_str()), &native_result, &error)) {
         throw_error(error);
     }
     ResultGuard guard{native_result};
 
     Result result;
-    const auto columns = std::max(0, yousdb_result_column_count(native_result));
-    const auto rows = std::max(0, yousdb_result_row_count(native_result));
+    const auto columns = std::max(0, soldierdb_result_column_count(native_result));
+    const auto rows = std::max(0, soldierdb_result_row_count(native_result));
     for (int column = 0; column < columns; ++column) {
-        result.columns_.push_back(take_string(yousdb_result_column_name(native_result, column)));
+        result.columns_.push_back(take_string(soldierdb_result_column_name(native_result, column)));
     }
     for (int row = 0; row < rows; ++row) {
         std::vector<Value> values;
@@ -164,9 +164,9 @@ Result Database::exec(const std::string& sql) const {
         }
         result.rows_.push_back(std::move(values));
     }
-    result.rows_affected_ = static_cast<std::size_t>(std::max(0, yousdb_result_rows_affected(native_result)));
-    result.message_ = take_string(yousdb_result_message(native_result));
+    result.rows_affected_ = static_cast<std::size_t>(std::max(0, soldierdb_result_rows_affected(native_result)));
+    result.message_ = take_string(soldierdb_result_message(native_result));
     return result;
 }
 
-} // namespace yousdb
+} // namespace soldierdb
