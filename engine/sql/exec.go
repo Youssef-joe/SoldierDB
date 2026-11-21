@@ -843,10 +843,12 @@ func execDescribe(tx *db.Tx, stmt *Describe) (*Result, error) {
 
 func scanTable(tx *db.Tx, table *Table) ([][]Value, error) {
 	var rows [][]Value
+	var scanErr error
 	prefix := tableRowPrefix(table.Name)
 	err := tx.Scan(prefix, prefixEnd(prefix), func(_, value []byte) bool {
 		row, err := decodeRow(value, table)
 		if err != nil {
+			scanErr = err
 			return false
 		}
 		rows = append(rows, row)
@@ -854,6 +856,9 @@ func scanTable(tx *db.Tx, table *Table) ([][]Value, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if scanErr != nil {
+		return nil, scanErr
 	}
 	return rows, nil
 }
